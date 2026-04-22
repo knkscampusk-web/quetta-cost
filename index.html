@@ -1,0 +1,3764 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QUETTA 학원비용 관리</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+  :root {
+    --teal: #2BADA0;
+    --teal-dark: #1F8A80;
+    --teal-light: #E8F7F5;
+    --gold: #D4BE52;
+    --gold-dark: #B39F3E;
+    --gold-light: #FAF6E4;
+    --navy: #1B3D4E;
+    --text: #2C3E50;
+    --text-light: #6B7C8C;
+    --border: #E3E8EC;
+    --bg: #F7F9FB;
+    --white: #FFFFFF;
+    --red: #E74C3C;
+    --green: #27AE60;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+    --shadow: 0 4px 12px rgba(0,0,0,0.08);
+    --shadow-lg: 0 10px 30px rgba(0,0,0,0.12);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+
+  /* ===== 로그인 화면 ===== */
+  #loginScreen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--teal) 0%, var(--navy) 100%);
+    padding: 20px;
+  }
+  .login-card {
+    background: var(--white);
+    border-radius: 16px;
+    padding: 48px 40px;
+    width: 100%;
+    max-width: 420px;
+    box-shadow: var(--shadow-lg);
+  }
+  .login-logo {
+    text-align: center;
+    margin-bottom: 32px;
+  }
+  .login-logo .brand {
+    display: inline-block;
+    background: linear-gradient(135deg, var(--teal) 0%, var(--teal-dark) 100%);
+    color: white;
+    width: 72px;
+    height: 72px;
+    line-height: 72px;
+    border-radius: 16px;
+    font-size: 28px;
+    font-weight: 900;
+    letter-spacing: -1px;
+    margin-bottom: 16px;
+  }
+  .login-logo h1 { font-size: 20px; color: var(--navy); margin-bottom: 4px; }
+  .login-logo p { font-size: 13px; color: var(--text-light); }
+  .form-group { margin-bottom: 16px; }
+  .form-group label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+  .form-group input, .form-group select {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    font-size: 14px;
+    font-family: inherit;
+    transition: all 0.2s;
+    background: white;
+  }
+  .form-group input:focus, .form-group select:focus {
+    outline: none;
+    border-color: var(--teal);
+    box-shadow: 0 0 0 3px rgba(43, 173, 160, 0.1);
+  }
+  .btn-primary {
+    width: 100%;
+    padding: 13px;
+    background: linear-gradient(135deg, var(--teal) 0%, var(--teal-dark) 100%);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s;
+    box-shadow: 0 4px 12px rgba(43, 173, 160, 0.25);
+  }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(43, 173, 160, 0.35); }
+  .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+  .error-msg {
+    color: var(--red);
+    font-size: 13px;
+    padding: 10px 12px;
+    background: #FDF2F0;
+    border-radius: 8px;
+    margin-top: 12px;
+    display: none;
+  }
+  .error-msg.show { display: block; }
+  .login-tab-switch {
+    text-align: center;
+    margin-top: 20px;
+    font-size: 13px;
+    color: var(--text-light);
+  }
+  .login-tab-switch a {
+    color: var(--teal);
+    text-decoration: none;
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  /* ===== 메인 레이아웃 ===== */
+  #mainApp { display: none; min-height: 100vh; }
+  header {
+    background: white;
+    border-bottom: 1px solid var(--border);
+    padding: 14px 32px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: var(--shadow-sm);
+  }
+  .header-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    max-width: 1600px;
+    margin: 0 auto;
+    gap: 20px;
+  }
+  .header-left { display: flex; align-items: center; gap: 16px; }
+  .header-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .header-brand .logo-box {
+    background: linear-gradient(135deg, var(--teal), var(--teal-dark));
+    color: white;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 900;
+    font-size: 14px;
+    letter-spacing: -0.5px;
+  }
+  .header-brand .title { font-size: 15px; font-weight: 700; color: var(--navy); }
+  .header-brand .subtitle { font-size: 11px; color: var(--text-light); }
+  .header-right { display: flex; align-items: center; gap: 12px; }
+  .year-selector {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--teal-light);
+    padding: 6px 12px;
+    border-radius: 8px;
+  }
+  .year-selector label { font-size: 12px; color: var(--teal-dark); font-weight: 600; }
+  .year-selector select {
+    border: none;
+    background: white;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--navy);
+    cursor: pointer;
+  }
+  .user-info {
+    font-size: 12px;
+    color: var(--text-light);
+    padding: 6px 12px;
+    background: var(--bg);
+    border-radius: 8px;
+  }
+  .btn-logout {
+    background: none;
+    border: 1px solid var(--border);
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 12px;
+    color: var(--text-light);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-logout:hover { border-color: var(--red); color: var(--red); }
+
+  /* ===== 탭 네비게이션 ===== */
+  .tabs {
+    background: white;
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px;
+    display: flex;
+    gap: 0;
+    overflow-x: auto;
+  }
+  .tab-btn {
+    padding: 14px 20px;
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-light);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+  }
+  .tab-btn:hover { color: var(--teal); }
+  .tab-btn.active {
+    color: var(--teal);
+    border-bottom-color: var(--teal);
+    font-weight: 700;
+  }
+  .tab-btn .count-badge {
+    display: inline-block;
+    margin-left: 6px;
+    background: var(--teal-light);
+    color: var(--teal-dark);
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  /* ===== 메인 콘텐츠 ===== */
+  main { padding: 24px 32px; max-width: 1600px; margin: 0 auto; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* ===== 통계 카드 ===== */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .stat-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: var(--shadow-sm);
+    border-left: 4px solid var(--teal);
+  }
+  .stat-card.gold { border-left-color: var(--gold); }
+  .stat-card.navy { border-left-color: var(--navy); }
+  .stat-card .stat-label { font-size: 12px; color: var(--text-light); margin-bottom: 6px; }
+  .stat-card .stat-value { font-size: 24px; font-weight: 700; color: var(--navy); }
+  .stat-card .stat-sub { font-size: 11px; color: var(--text-light); margin-top: 4px; }
+
+  /* ===== 검색 & 필터 ===== */
+  .search-section {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: var(--shadow-sm);
+  }
+  .search-bar {
+    position: relative;
+    margin-bottom: 16px;
+  }
+  .search-bar input {
+    width: 100%;
+    padding: 14px 16px 14px 46px;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 14px;
+    transition: all 0.2s;
+  }
+  .search-bar input:focus {
+    outline: none;
+    border-color: var(--teal);
+    box-shadow: 0 0 0 3px rgba(43, 173, 160, 0.1);
+  }
+  .search-bar::before {
+    content: '🔍';
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 16px;
+  }
+  .filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+  }
+  .filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    font-size: 13px;
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+  }
+  .filter-chip:hover { border-color: var(--teal); color: var(--teal); }
+  .filter-chip.active {
+    background: var(--teal);
+    color: white;
+    border-color: var(--teal);
+  }
+  .filter-group {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .filter-label {
+    font-size: 12px;
+    color: var(--text-light);
+    font-weight: 600;
+    margin-right: 4px;
+    align-self: center;
+  }
+  .filter-separator {
+    width: 1px;
+    height: 20px;
+    background: var(--border);
+    margin: 0 4px;
+  }
+
+  /* ===== 거래처 카드 그리드 ===== */
+  .vendors-section h2 {
+    font-size: 16px;
+    color: var(--navy);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .vendors-section h2 .section-count {
+    font-size: 13px;
+    color: var(--text-light);
+    font-weight: 400;
+  }
+  .vendors-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .vendor-card {
+    background: white;
+    border-radius: 12px;
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid var(--border);
+  }
+  .vendor-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow);
+    border-color: var(--teal);
+  }
+  .vendor-card .vendor-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--navy);
+    margin-bottom: 6px;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .vendor-card .vendor-amount {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--teal);
+    margin-bottom: 4px;
+  }
+  .vendor-card .vendor-meta {
+    font-size: 11px;
+    color: var(--text-light);
+    display: flex;
+    justify-content: space-between;
+  }
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-light);
+  }
+  .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+  .empty-state .msg { font-size: 14px; }
+
+  /* ===== 차트 섹션 ===== */
+  .charts-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  @media (max-width: 900px) {
+    .charts-grid { grid-template-columns: 1fr; }
+  }
+  .chart-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: var(--shadow-sm);
+  }
+  .chart-card h3 {
+    font-size: 14px;
+    color: var(--navy);
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .chart-card h3 .sub {
+    font-size: 11px;
+    color: var(--text-light);
+    font-weight: 400;
+  }
+  .chart-wrap { position: relative; height: 260px; }
+
+  /* ===== 데이터 테이블 ===== */
+  .table-wrap {
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 24px;
+  }
+  .table-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .table-header h3 {
+    font-size: 14px;
+    color: var(--navy);
+  }
+  .btn-export {
+    background: var(--gold);
+    color: white;
+    border: none;
+    padding: 7px 14px;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-export:hover { background: var(--gold-dark); }
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .data-table thead {
+    background: var(--bg);
+  }
+  .data-table th {
+    padding: 11px 14px;
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-light);
+    font-size: 12px;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .data-table td {
+    padding: 11px 14px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  .data-table tr:last-child td { border-bottom: none; }
+  .data-table tbody tr:hover { background: var(--teal-light); cursor: pointer; }
+  .data-table .amount { text-align: right; font-weight: 600; color: var(--navy); font-variant-numeric: tabular-nums; }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .badge.미지급 { background: #FEF3E6; color: #D97706; }
+  .badge.자동이체 { background: var(--teal-light); color: var(--teal-dark); }
+  .badge.기지급 { background: #E8ECEF; color: var(--text-light); }
+  .badge.송금 { background: #EEF2FF; color: #4F46E5; }
+  .table-footer {
+    padding: 14px 20px;
+    background: var(--bg);
+    text-align: right;
+    font-weight: 700;
+    color: var(--navy);
+    border-top: 2px solid var(--teal);
+  }
+
+  /* ===== 모달 ===== */
+  .modal-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 200;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 40px 20px;
+    overflow-y: auto;
+  }
+  .modal-backdrop.show { display: flex; }
+  .modal {
+    background: white;
+    border-radius: 16px;
+    width: 100%;
+    max-width: 1000px;
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+  }
+  .modal-header {
+    padding: 20px 24px;
+    background: linear-gradient(135deg, var(--teal) 0%, var(--teal-dark) 100%);
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .modal-header h2 { font-size: 18px; }
+  .modal-header .close-btn {
+    background: rgba(255,255,255,0.2);
+    color: white;
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 16px;
+  }
+  .modal-header .close-btn:hover { background: rgba(255,255,255,0.3); }
+  .modal-body { padding: 24px; max-height: calc(100vh - 180px); overflow-y: auto; }
+
+  .vendor-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .summary-cell {
+    background: var(--bg);
+    padding: 14px;
+    border-radius: 10px;
+    text-align: center;
+  }
+  .summary-cell .label { font-size: 11px; color: var(--text-light); margin-bottom: 4px; }
+  .summary-cell .value { font-size: 18px; font-weight: 700; color: var(--navy); }
+  .monthly-grid {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 4px;
+    margin-bottom: 20px;
+  }
+  @media (max-width: 900px) { .monthly-grid { grid-template-columns: repeat(6, 1fr); } }
+  @media (max-width: 500px) { .monthly-grid { grid-template-columns: repeat(4, 1fr); } }
+  .month-box {
+    background: var(--bg);
+    padding: 10px 6px;
+    border-radius: 8px;
+    text-align: center;
+    border: 1px solid var(--border);
+  }
+  .month-box .m { font-size: 10px; color: var(--text-light); font-weight: 600; }
+  .month-box .v { font-size: 11px; font-weight: 700; color: var(--navy); margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .month-box.has-data { background: var(--teal-light); border-color: var(--teal); }
+
+  /* ===== 업로드 탭 ===== */
+  .upload-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  @media (max-width: 900px) { .upload-container { grid-template-columns: 1fr; } }
+  .upload-card {
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: var(--shadow-sm);
+  }
+  .upload-card h3 {
+    font-size: 16px;
+    color: var(--navy);
+    margin-bottom: 6px;
+  }
+  .upload-card .desc {
+    font-size: 13px;
+    color: var(--text-light);
+    margin-bottom: 16px;
+  }
+  .upload-selectors {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .upload-selectors select {
+    padding: 10px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 13px;
+    background: white;
+  }
+  .drop-zone {
+    border: 2px dashed var(--border);
+    border-radius: 10px;
+    padding: 32px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--bg);
+  }
+  .drop-zone:hover, .drop-zone.dragover {
+    border-color: var(--teal);
+    background: var(--teal-light);
+  }
+  .drop-zone .icon { font-size: 36px; margin-bottom: 8px; }
+  .drop-zone .text { font-size: 13px; color: var(--text); font-weight: 500; }
+  .drop-zone .hint { font-size: 11px; color: var(--text-light); margin-top: 4px; }
+  .preview-area {
+    margin-top: 16px;
+    padding: 14px;
+    background: var(--bg);
+    border-radius: 8px;
+    font-size: 12px;
+    display: none;
+  }
+  .preview-area.show { display: block; }
+  .preview-area .file-name {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .preview-area .file-name strong { color: var(--navy); }
+  .preview-area .count-tag {
+    background: var(--teal);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .preview-table {
+    width: 100%;
+    font-size: 11px;
+    border-collapse: collapse;
+  }
+  .preview-table th, .preview-table td {
+    padding: 6px 8px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  .preview-table th { background: white; color: var(--text-light); font-weight: 600; }
+  .btn-upload {
+    width: 100%;
+    margin-top: 14px;
+    padding: 12px;
+    background: var(--teal);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-upload:hover { background: var(--teal-dark); }
+  .btn-upload:disabled { opacity: 0.5; cursor: not-allowed; }
+  .warning-box {
+    background: #FFF8E1;
+    border-left: 3px solid var(--gold);
+    padding: 10px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    color: #8B6F1F;
+    margin-top: 10px;
+    display: none;
+  }
+  .warning-box.show { display: block; }
+
+  /* ===== 토스트 ===== */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 12px 20px;
+    background: var(--navy);
+    color: white;
+    border-radius: 10px;
+    font-size: 13px;
+    box-shadow: var(--shadow-lg);
+    z-index: 500;
+    opacity: 0;
+    transition: all 0.3s;
+    pointer-events: none;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(-8px); }
+  .toast.success { background: var(--green); }
+  .toast.error { background: var(--red); }
+
+  /* ===== 로딩 ===== */
+  .loading-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(255,255,255,0.85);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  }
+  .loading-overlay.show { display: flex; }
+  .spinner {
+    width: 44px;
+    height: 44px;
+    border: 3px solid var(--teal-light);
+    border-top-color: var(--teal);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ===== 렌탈 관리 ===== */
+  .rental-vendor-group {
+    background: white;
+    border-radius: 12px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+    border-left: 4px solid var(--teal);
+  }
+  .rental-vendor-header {
+    padding: 14px 18px;
+    background: linear-gradient(90deg, var(--teal-light) 0%, transparent 100%);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .rental-vendor-header .vname {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--navy);
+  }
+  .rental-vendor-header .vstat {
+    font-size: 12px;
+    color: var(--text-light);
+    display: flex;
+    gap: 12px;
+  }
+  .rental-vendor-header .vstat strong {
+    color: var(--teal-dark);
+  }
+  .rental-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .rental-table thead {
+    background: var(--bg);
+  }
+  .rental-table th {
+    padding: 10px 14px;
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-light);
+    font-size: 12px;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .rental-table td {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  .rental-table tr:last-child td { border-bottom: none; }
+  .rental-row-clickable { transition: background 0.15s; }
+  .rental-row-clickable:hover { background: var(--teal-light); cursor: pointer; }
+  .rental-table .site-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    background: var(--bg);
+    border-radius: 10px;
+    font-size: 11px;
+    color: var(--text);
+    font-weight: 500;
+  }
+  .rental-table .qty {
+    text-align: center;
+    font-weight: 700;
+    color: var(--navy);
+    font-variant-numeric: tabular-nums;
+  }
+  .rental-table .amt {
+    text-align: right;
+    font-weight: 600;
+    color: var(--navy);
+    font-variant-numeric: tabular-nums;
+  }
+  .rental-table .amt.text-amt {
+    color: var(--gold-dark);
+    font-size: 12px;
+    font-style: italic;
+    font-weight: 500;
+  }
+  .rental-note-input {
+    width: 100%;
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 12px;
+    background: white;
+    transition: all 0.15s;
+  }
+  .rental-note-input:focus {
+    outline: none;
+    border-color: var(--teal);
+    box-shadow: 0 0 0 2px rgba(43, 173, 160, 0.1);
+  }
+  .rental-note-input.saved {
+    background: var(--teal-light);
+    border-color: var(--teal);
+  }
+  .btn-detail {
+    padding: 5px 12px;
+    background: var(--navy);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+  }
+  .btn-detail:hover { background: #2A5970; }
+  .rental-expiring { color: var(--red); font-weight: 600; }
+  .rental-expiring-soon { color: var(--gold-dark); font-weight: 600; }
+
+  /* ===== 반응형 ===== */
+  @media (max-width: 768px) {
+    header { padding: 12px 16px; }
+    .tabs { padding: 0 16px; }
+    main { padding: 16px; }
+    .header-brand .subtitle { display: none; }
+    .user-info { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ========== PIN 입력 게이트 ========== -->
+<div id="pinGate" style="position:fixed;inset:0;background:linear-gradient(135deg,var(--teal) 0%,var(--navy) 100%);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px">
+  <div style="background:white;border-radius:16px;padding:48px 40px;width:100%;max-width:400px;box-shadow:0 20px 50px rgba(0,0,0,0.3)">
+    <div style="text-align:center;margin-bottom:28px">
+      <div style="display:inline-block;background:linear-gradient(135deg,var(--teal),var(--teal-dark));color:white;width:72px;height:72px;line-height:72px;border-radius:16px;font-size:24px;font-weight:900;letter-spacing:-1px;margin-bottom:16px">QTA</div>
+      <h1 style="font-size:18px;color:var(--navy);margin-bottom:4px">학원비용 관리 시스템</h1>
+      <p style="font-size:12px;color:var(--text-light)">강남대성기숙 QUETTA</p>
+    </div>
+    <div style="margin-bottom:14px">
+      <label style="display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px">접속 PIN</label>
+      <input type="password" id="pinInput" inputmode="numeric" pattern="[0-9]*" maxlength="10" placeholder="PIN 입력" style="width:100%;padding:14px 16px;border:1.5px solid var(--border);border-radius:10px;font-size:18px;font-family:inherit;text-align:center;letter-spacing:6px" autofocus>
+    </div>
+    <button id="pinSubmit" style="width:100%;padding:14px;background:linear-gradient(135deg,var(--teal),var(--teal-dark));color:white;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit">입장</button>
+    <div id="pinError" style="color:var(--red);font-size:13px;padding:10px 12px;background:#FDF2F0;border-radius:8px;margin-top:12px;display:none"></div>
+    <div style="font-size:11px;color:var(--text-light);text-align:center;margin-top:20px;line-height:1.6">
+      ※ 이 페이지는 학원 내부 공유용입니다.<br>PIN을 외부에 노출하지 마세요.
+    </div>
+  </div>
+</div>
+
+<!-- ========== 메인 앱 ========== -->
+<div id="mainApp" style="display:none">
+  <header>
+    <div class="header-inner">
+      <div class="header-left">
+        <div class="header-brand">
+          <div class="logo-box">QTA</div>
+          <div>
+            <div class="title">학원비용 관리 시스템 <span style="font-size:10px;background:var(--teal);color:white;padding:1px 6px;border-radius:4px;margin-left:4px;font-weight:700">CLOUD</span></div>
+            <div class="subtitle">강남대성기숙 QUETTA</div>
+          </div>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="year-selector">
+          <label>연도</label>
+          <select id="yearSelect"></select>
+        </div>
+        <div class="year-selector">
+          <label>월</label>
+          <select id="monthHeaderSelect">
+            <option value="all">전체</option>
+          </select>
+        </div>
+        <button class="btn-logout" id="dataBackupBtn" title="전체 데이터를 JSON 파일로 저장">💾 백업</button>
+        <button class="btn-logout" id="dataRestoreBtn" title="JSON 백업 파일에서 복원">📂 복원</button>
+        <button class="btn-logout" id="dataDeleteBtn" title="특정 연·월 데이터 삭제" style="border-color:#F3C5BE;color:var(--red)">🗑 월별 삭제</button>
+        <input type="file" id="restoreFileInput" accept=".json" style="display:none">
+      </div>
+    </div>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab-btn active" data-tab="view">📊 조회·분석</button>
+    <button class="tab-btn" data-tab="rental">🏷️ 렌탈 관리</button>
+    <button class="tab-btn" data-tab="upload">⬆️ 데이터 업로드</button>
+  </nav>
+
+  <main>
+    <!-- 탭 1: 조회 -->
+    <div class="tab-content active" id="tab-view">
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-label">선택연도 총 지출</div>
+          <div class="stat-value" id="statYearTotal">-</div>
+          <div class="stat-sub" id="statYearMonths">-</div>
+        </div>
+        <div class="stat-card gold" id="vendorCountCard" style="cursor:pointer" title="클릭하면 전체 거래처 목록을 볼 수 있습니다">
+          <div class="stat-label">거래처 수 <span style="font-size:10px;color:var(--gold-dark);margin-left:4px">▶ 클릭</span></div>
+          <div class="stat-value" id="statVendorCount">-</div>
+          <div class="stat-sub">필터 기준</div>
+        </div>
+        <div class="stat-card navy">
+          <div class="stat-label">평균 월 지출</div>
+          <div class="stat-value" id="statAvgMonthly">-</div>
+          <div class="stat-sub">데이터 있는 월 기준</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">전년 동기 대비</div>
+          <div class="stat-value" id="statYoY">-</div>
+          <div class="stat-sub" id="statYoYSub">-</div>
+        </div>
+      </div>
+
+      <div class="search-section">
+        <div class="search-bar">
+          <input type="text" id="searchInput" placeholder="거래처·내용·내역·방법·사업장 검색...">
+        </div>
+        <div class="filters">
+          <span class="filter-label">월</span>
+          <div class="filter-group" id="monthFilters">
+            <button class="filter-chip active" data-month="all">전체</button>
+          </div>
+          <div class="filter-separator"></div>
+          <span class="filter-label">사업장</span>
+          <div class="filter-group" id="siteFilters"></div>
+          <div class="filter-separator"></div>
+          <span class="filter-label">출처</span>
+          <div class="filter-group" id="sourceFilters"></div>
+        </div>
+      </div>
+
+      <div class="charts-grid">
+        <div class="chart-card">
+          <h3>월별 지출 추이 <span class="sub" id="monthlyChartSub">-</span></h3>
+          <div class="chart-wrap"><canvas id="monthlyChart"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h3>사업장별 비중 <span class="sub">전체</span></h3>
+          <div class="chart-wrap"><canvas id="categoryChart"></canvas></div>
+        </div>
+      </div>
+
+      <div class="vendors-section">
+        <h2>🏢 거래처 목록 <span class="section-count" id="vendorCount">(0개)</span></h2>
+        <div class="vendors-grid" id="vendorsGrid"></div>
+      </div>
+
+      <div class="table-wrap">
+        <div class="table-header">
+          <h3>📋 전체 내역</h3>
+          <button class="btn-export" id="exportBtn">📥 엑셀 내보내기</button>
+        </div>
+        <div style="max-height:500px;overflow:auto">
+          <table class="data-table" id="dataTable">
+            <thead>
+              <tr>
+                <th>일자</th>
+                <th>사업장</th>
+                <th>거래처</th>
+                <th>내용</th>
+                <th>방법</th>
+                <th>출처</th>
+                <th class="amount">금액</th>
+              </tr>
+            </thead>
+            <tbody id="dataTableBody"></tbody>
+          </table>
+        </div>
+        <div class="table-footer" id="dataTableFooter">합계: -</div>
+      </div>
+    </div>
+
+    <!-- 탭 2: 렌탈 관리 -->
+    <div class="tab-content" id="tab-rental">
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-label">월 렌탈료 합계</div>
+          <div class="stat-value" id="rentalStatTotal">-</div>
+          <div class="stat-sub" id="rentalStatTotalSub">-</div>
+        </div>
+        <div class="stat-card gold">
+          <div class="stat-label">거래처 수</div>
+          <div class="stat-value" id="rentalStatVendors">-</div>
+          <div class="stat-sub">렌탈 계약</div>
+        </div>
+        <div class="stat-card navy">
+          <div class="stat-label">제품 종류</div>
+          <div class="stat-value" id="rentalStatProducts">-</div>
+          <div class="stat-sub">중복 제외</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">총 계약 건수</div>
+          <div class="stat-value" id="rentalStatCount">-</div>
+          <div class="stat-sub" id="rentalStatCountSub">-</div>
+        </div>
+      </div>
+
+      <div class="search-section">
+        <div class="search-bar">
+          <input type="text" id="rentalSearchInput" placeholder="거래처·사업장·제품·설치장소 검색...">
+        </div>
+        <div class="filters">
+          <span class="filter-label">사업장</span>
+          <div class="filter-group" id="rentalSiteFilters"></div>
+          <div class="filter-separator"></div>
+          <span class="filter-label">정렬</span>
+          <div class="filter-group" id="rentalSortFilters">
+            <button class="filter-chip active" data-rsort="vendor">거래처순</button>
+            <button class="filter-chip" data-rsort="amount">금액 많은순</button>
+            <button class="filter-chip" data-rsort="count">수량 많은순</button>
+          </div>
+          <div style="margin-left:auto">
+            <button class="btn-export" id="rentalExportBtn">📥 엑셀 내보내기</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="rentalVendorGroups"></div>
+    </div>
+
+    <!-- 탭 3: 업로드 -->
+    <div class="tab-content" id="tab-upload">
+      <div style="background:white;border-radius:12px;padding:20px;margin-bottom:20px;box-shadow:var(--shadow-sm)">
+        <h3 style="font-size:15px;color:var(--navy);margin-bottom:6px">📅 작업할 연·월 선택</h3>
+        <p style="font-size:13px;color:var(--text-light);margin-bottom:14px">선택한 연·월에 대해 데이터를 <strong>조회</strong>·<strong>삭제</strong>·<strong>저장</strong>할 수 있습니다. 동일 연·월에 재저장 시 기존 데이터는 교체됩니다.</p>
+        <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
+          <div style="flex:1;min-width:140px">
+            <label style="font-size:12px;color:var(--text-light);font-weight:600;display:block;margin-bottom:4px">연도</label>
+            <select id="uploadYear" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:14px"></select>
+          </div>
+          <div style="flex:1;min-width:140px">
+            <label style="font-size:12px;color:var(--text-light);font-weight:600;display:block;margin-bottom:4px">월</label>
+            <select id="uploadMonth" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:14px"></select>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn-upload" id="viewMonthBtn" style="background:var(--navy);width:auto;padding:11px 18px;margin-top:0">🔍 조회</button>
+            <button class="btn-upload" id="deleteMonthBtn" style="background:var(--red);width:auto;padding:11px 18px;margin-top:0">🗑 삭제</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="upload-container">
+        <!-- 파일 1: 미지급비용 -->
+        <div class="upload-card">
+          <h3>📄 미지급비용 파일</h3>
+          <p class="desc">예: <code>2__3월_미지급비용_기숙QUETTA_xxx.xlsx</code><br>상단 결제내역 + 하단 기지급·선급금 섹션 모두 파싱</p>
+          <div class="drop-zone" id="dropZone1">
+            <div class="icon">📥</div>
+            <div class="text">파일을 끌어다 놓거나 클릭해서 선택</div>
+            <div class="hint">.xlsx, .xls 지원</div>
+          </div>
+          <input type="file" id="fileInput1" accept=".xlsx,.xls" style="display:none">
+          <div class="preview-area" id="preview1"></div>
+          <div class="warning-box" id="warning1">⚠️ 선택한 연·월에 이미 데이터가 있습니다. 저장 시 기존 데이터가 교체됩니다.</div>
+          <button class="btn-upload" id="uploadBtn1" disabled>💾 저장</button>
+        </div>
+
+        <!-- 파일 2: 자동이체 -->
+        <div class="upload-card">
+          <h3>📄 자동이체·송금 내역서</h3>
+          <p class="desc">예: <code>학원_26년_3월_자동이체_및_송금_내역서.xlsx</code><br>사업장·거래처·내역·이체일자·방법·금액 파싱</p>
+          <div class="drop-zone" id="dropZone2">
+            <div class="icon">📥</div>
+            <div class="text">파일을 끌어다 놓거나 클릭해서 선택</div>
+            <div class="hint">.xlsx, .xls 지원</div>
+          </div>
+          <input type="file" id="fileInput2" accept=".xlsx,.xls" style="display:none">
+          <div class="preview-area" id="preview2"></div>
+          <div class="warning-box" id="warning2">⚠️ 선택한 연·월에 이미 데이터가 있습니다. 저장 시 기존 데이터가 교체됩니다.</div>
+          <button class="btn-upload" id="uploadBtn2" disabled>💾 저장</button>
+        </div>
+      </div>
+
+      <!-- 렌탈 업로드 섹션 -->
+      <div style="background:white;border-radius:12px;padding:20px;margin-top:20px;box-shadow:var(--shadow-sm)">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;flex-wrap:wrap;gap:12px">
+          <div>
+            <h3 style="font-size:15px;color:var(--navy);margin-bottom:6px">🏷️ 렌탈 내역 파일</h3>
+            <p style="font-size:13px;color:var(--text-light)">거래처·사업장·제품·설치장소·수량·금액·렌탈시작일·렌탈종료일 컬럼 포함 엑셀 파일<br>재업로드 시 기존 렌탈 데이터는 전체 교체되지만, 입력한 <strong>비고는 자동 유지</strong>됩니다 (거래처+사업장+제품 기준).</p>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn-upload" id="viewRentalBtn" style="background:var(--navy);width:auto;padding:10px 16px;margin-top:0">🔍 조회</button>
+            <button class="btn-upload" id="deleteRentalBtn" style="background:var(--red);width:auto;padding:10px 16px;margin-top:0">🗑 전체 삭제</button>
+          </div>
+        </div>
+        <div style="padding:0">
+          <div class="drop-zone" id="dropZoneRental">
+            <div class="icon">📥</div>
+            <div class="text">렌탈 엑셀 파일을 끌어다 놓거나 클릭해서 선택</div>
+            <div class="hint">.xlsx, .xls 지원</div>
+          </div>
+          <input type="file" id="fileInputRental" accept=".xlsx,.xls" style="display:none">
+          <div class="preview-area" id="previewRental"></div>
+          <div class="warning-box" id="warningRental">⚠️ 기존 렌탈 데이터가 있습니다. 저장 시 전체 교체됩니다 (비고는 유지).</div>
+          <button class="btn-upload" id="uploadBtnRental" disabled>💾 저장</button>
+        </div>
+      </div>
+
+      <div style="background:white;border-radius:12px;padding:20px;margin-top:20px;box-shadow:var(--shadow-sm)">
+        <h3 style="font-size:14px;color:var(--navy);margin-bottom:12px">🗃️ 업로드된 데이터 현황</h3>
+        <div id="uploadStatus" style="font-size:13px;color:var(--text-light)">로딩 중...</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- 전체 거래처 목록 모달 -->
+<div class="modal-backdrop" id="vendorListModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>🏢 전체 거래처 목록</h2>
+      <button class="close-btn" id="vendorListModalClose">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
+        <input type="text" id="vendorListSearch" placeholder="거래처 이름으로 검색..." style="flex:1;min-width:200px;padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px">
+        <div style="display:flex;gap:6px">
+          <button class="filter-chip active" data-vsort="amount-desc">금액 높은순</button>
+          <button class="filter-chip" data-vsort="amount-asc">금액 낮은순</button>
+          <button class="filter-chip" data-vsort="name">이름순</button>
+          <button class="filter-chip" data-vsort="count">건수순</button>
+        </div>
+      </div>
+      <div id="vendorListSummary" style="font-size:12px;color:var(--text-light);margin-bottom:10px"></div>
+      <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;max-height:60vh;overflow-y:auto">
+        <table class="data-table" id="vendorListTable">
+          <thead style="position:sticky;top:0;background:var(--bg);z-index:1">
+            <tr>
+              <th style="width:40px">#</th>
+              <th>거래처</th>
+              <th class="amount">총액</th>
+              <th style="text-align:center">건수</th>
+              <th style="text-align:center">개월</th>
+            </tr>
+          </thead>
+          <tbody id="vendorListBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 월별 데이터 조회 모달 (업로드 탭에서 사용) -->
+<div class="modal-backdrop" id="monthDataModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="monthDataModalTitle">월별 데이터 조회</h2>
+      <button class="close-btn" id="monthDataModalClose">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="monthDataSummary" style="margin-bottom:14px"></div>
+      <div id="monthDataContent"></div>
+      <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn-upload" id="monthDataDeleteBtn" style="background:var(--red);width:auto;padding:10px 16px;margin-top:0">🗑 이 월 데이터 삭제</button>
+        <button class="btn-upload" id="monthDataCloseBtn" style="background:var(--text-light);width:auto;padding:10px 16px;margin-top:0">닫기</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 월별 삭제 모달 (헤더 버튼) -->
+<div class="modal-backdrop" id="deleteByMonthModal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header" style="background:linear-gradient(135deg,var(--red),#C04030)">
+      <h2>🗑 월별 데이터 삭제</h2>
+      <button class="close-btn" id="deleteByMonthModalClose">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--text-light);margin-bottom:16px">삭제할 연도와 월을 선택하세요. 이 작업은 되돌릴 수 없으니 먼저 백업하시는 것을 권장합니다.</p>
+      <div style="display:flex;gap:10px;margin-bottom:14px">
+        <div style="flex:1">
+          <label style="font-size:12px;color:var(--text-light);font-weight:600;display:block;margin-bottom:4px">연도</label>
+          <select id="deleteYear" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:14px"></select>
+        </div>
+        <div style="flex:1">
+          <label style="font-size:12px;color:var(--text-light);font-weight:600;display:block;margin-bottom:4px">월</label>
+          <select id="deleteMonth" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:14px"></select>
+        </div>
+      </div>
+      <div id="deleteByMonthInfo" style="background:var(--bg);padding:12px;border-radius:8px;font-size:13px;margin-bottom:14px;color:var(--text-light)">선택한 연·월의 데이터 정보가 여기 표시됩니다</div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn-upload" id="deleteByMonthCancelBtn" style="background:var(--text-light);width:auto;padding:10px 16px;margin-top:0">취소</button>
+        <button class="btn-upload" id="deleteByMonthConfirmBtn" style="background:var(--red);width:auto;padding:10px 16px;margin-top:0">삭제 실행</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 렌탈 세부내역 모달 -->
+<div class="modal-backdrop" id="rentalDetailModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="rentalDetailTitle">렌탈 세부내역</h2>
+      <button class="close-btn" id="rentalDetailClose">✕</button>
+    </div>
+    <div class="modal-body" id="rentalDetailBody"></div>
+  </div>
+</div>
+
+<!-- 거래처 상세 모달 -->
+<div class="modal-backdrop" id="vendorModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="vendorModalTitle">거래처 상세</h2>
+      <button class="close-btn" id="vendorModalClose">✕</button>
+    </div>
+    <div class="modal-body" id="vendorModalBody"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+
+<script>
+/* ========================================================
+   QUETTA 학원비용 관리 — Firebase 버전 (PIN 방식)
+   ======================================================== */
+
+/* ========================================================
+   Firebase 설정
+   ======================================================== */
+const firebaseConfig = {
+  apiKey: "AIzaSyDneDNBf-AuufXQiDXuSy40HkRFsZHTo18",
+  authDomain: "quetta-cost-e61ab.firebaseapp.com",
+  projectId: "quetta-cost-e61ab",
+  storageBucket: "quetta-cost-e61ab.firebasestorage.app",
+  messagingSenderId: "438800666118",
+  appId: "1:438800666118:web:742229986ae3c7aec0fd87"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// 컬렉션 이름
+const C_EXPENSES = 'expenses';
+const C_RENTALS = 'rentals';
+const C_RENTAL_NOTES = 'rental_notes';
+
+/* ========================================================
+   PIN 게이트
+   ======================================================== */
+const APP_PIN = '6688';
+const PIN_SESSION_KEY = 'quetta-pin-ok';
+
+function setupPinGate() {
+  // 세션에 이미 통과 기록이 있으면 바로 진입
+  if (sessionStorage.getItem(PIN_SESSION_KEY) === '1') {
+    enterApp();
+    return;
+  }
+  const input = document.getElementById('pinInput');
+  const btn = document.getElementById('pinSubmit');
+  const err = document.getElementById('pinError');
+  const submit = () => {
+    const val = input.value.trim();
+    if (val === APP_PIN) {
+      sessionStorage.setItem(PIN_SESSION_KEY, '1');
+      enterApp();
+    } else {
+      err.textContent = 'PIN이 올바르지 않습니다.';
+      err.style.display = 'block';
+      input.value = '';
+      input.focus();
+    }
+  };
+  btn.onclick = submit;
+  input.onkeydown = (e) => { if (e.key === 'Enter') submit(); };
+  input.focus();
+}
+
+function enterApp() {
+  document.getElementById('pinGate').style.display = 'none';
+  document.getElementById('mainApp').style.display = 'block';
+  initApp();
+}
+
+/* ========================================================
+   Firestore 기반 데이터 저장소
+   ======================================================== */
+// 메모리 캐시 (최초 1회 로드 후 사용)
+const cache = {
+  expenses: null,   // 전체 expenses
+  rentals: null,    // 전체 rentals
+  notes: null,      // 렌탈 비고 객체
+  expensesLoaded: false,
+  rentalsLoaded: false,
+  notesLoaded: false
+};
+
+const storage = {
+  // ========== 지출 ==========
+  async _fetchAllExpenses() {
+    if (cache.expensesLoaded) return cache.expenses;
+    const snap = await db.collection(C_EXPENSES).get();
+    cache.expenses = snap.docs.map(d => ({id: d.id, ...d.data()}));
+    cache.expensesLoaded = true;
+    return cache.expenses;
+  },
+  async getAll() {
+    return await this._fetchAllExpenses();
+  },
+  async query({year, month, source} = {}) {
+    const all = await this._fetchAllExpenses();
+    return all.filter(d => {
+      if (year != null && d.year !== year) return false;
+      if (month != null && d.month !== month) return false;
+      if (source != null && (Array.isArray(source) ? !source.includes(d.source) : d.source !== source)) return false;
+      return true;
+    });
+  },
+  async deleteWhere({year, month, source} = {}) {
+    const all = await this._fetchAllExpenses();
+    const sourceArr = Array.isArray(source) ? source : (source ? [source] : null);
+    const toDelete = all.filter(d => {
+      if (year != null && d.year !== year) return false;
+      if (month != null && d.month !== month) return false;
+      if (sourceArr && !sourceArr.includes(d.source)) return false;
+      return true;
+    });
+    // Firestore 배치 (500개 제한)
+    for (let i = 0; i < toDelete.length; i += 450) {
+      const chunk = toDelete.slice(i, i + 450);
+      const batch = db.batch();
+      chunk.forEach(d => batch.delete(db.collection(C_EXPENSES).doc(d.id)));
+      await batch.commit();
+    }
+    // 캐시 갱신
+    const delIds = new Set(toDelete.map(d => d.id));
+    cache.expenses = all.filter(d => !delIds.has(d.id));
+    return toDelete.length;
+  },
+  async addMany(records) {
+    // records: {year, month, date, 사업장, 거래처, 내용, 방법, 계정과목, 비고, 금액, source} 배열
+    const added = [];
+    for (let i = 0; i < records.length; i += 450) {
+      const chunk = records.slice(i, i + 450);
+      const batch = db.batch();
+      chunk.forEach(r => {
+        const ref = db.collection(C_EXPENSES).doc();
+        batch.set(ref, {...r, uploadedAt: new Date().toISOString()});
+        added.push({id: ref.id, ...r, uploadedAt: new Date().toISOString()});
+      });
+      await batch.commit();
+    }
+    // 캐시 갱신
+    if (cache.expenses) cache.expenses.push(...added);
+    return added;
+  },
+  async clear() {
+    await this.deleteWhere({});
+  },
+
+  // ========== 렌탈 ==========
+  async _fetchAllRentals() {
+    if (cache.rentalsLoaded) return cache.rentals;
+    const snap = await db.collection(C_RENTALS).get();
+    cache.rentals = snap.docs.map(d => ({id: d.id, ...d.data()}));
+    cache.rentalsLoaded = true;
+    return cache.rentals;
+  },
+  async getRentals() {
+    return await this._fetchAllRentals();
+  },
+  // 전체 교체: 기존 모두 삭제 후 새 데이터 저장
+  async saveRentals(records) {
+    const existing = await this._fetchAllRentals();
+    // 기존 삭제
+    for (let i = 0; i < existing.length; i += 450) {
+      const chunk = existing.slice(i, i + 450);
+      const batch = db.batch();
+      chunk.forEach(d => batch.delete(db.collection(C_RENTALS).doc(d.id)));
+      await batch.commit();
+    }
+    // 새로 추가
+    const added = [];
+    for (let i = 0; i < records.length; i += 450) {
+      const chunk = records.slice(i, i + 450);
+      const batch = db.batch();
+      chunk.forEach(r => {
+        const ref = db.collection(C_RENTALS).doc();
+        const {id, ...data} = r; // 기존 id 제거 (Firestore가 새로 부여)
+        batch.set(ref, data);
+        added.push({id: ref.id, ...data});
+      });
+      await batch.commit();
+    }
+    cache.rentals = added;
+    return true;
+  },
+  async clearRentals() {
+    await this.saveRentals([]);
+  },
+  // 렌탈 단일 항목 추가
+  async addRental(record) {
+    const {id, ...data} = record;
+    const ref = await db.collection(C_RENTALS).add(data);
+    const newItem = {id: ref.id, ...data};
+    if (cache.rentals) cache.rentals.push(newItem);
+    return newItem;
+  },
+  // 렌탈 단일 항목 수정
+  async updateRental(id, updates) {
+    await db.collection(C_RENTALS).doc(id).update(updates);
+    if (cache.rentals) {
+      const idx = cache.rentals.findIndex(d => d.id === id);
+      if (idx >= 0) cache.rentals[idx] = {...cache.rentals[idx], ...updates};
+    }
+  },
+  // 렌탈 단일 항목 삭제
+  async deleteRental(id) {
+    await db.collection(C_RENTALS).doc(id).delete();
+    if (cache.rentals) cache.rentals = cache.rentals.filter(d => d.id !== id);
+  },
+  // 렌탈 다수 삭제
+  async deleteRentals(ids) {
+    for (let i = 0; i < ids.length; i += 450) {
+      const chunk = ids.slice(i, i + 450);
+      const batch = db.batch();
+      chunk.forEach(id => batch.delete(db.collection(C_RENTALS).doc(id)));
+      await batch.commit();
+    }
+    if (cache.rentals) {
+      const set = new Set(ids);
+      cache.rentals = cache.rentals.filter(d => !set.has(d.id));
+    }
+  },
+
+  // ========== 렌탈 비고 ==========
+  async _fetchAllNotes() {
+    if (cache.notesLoaded) return cache.notes;
+    const snap = await db.collection(C_RENTAL_NOTES).get();
+    const obj = {};
+    snap.docs.forEach(d => { obj[d.id] = d.data().text || ''; });
+    cache.notes = obj;
+    cache.notesLoaded = true;
+    return cache.notes;
+  },
+  async getRentalNotes() {
+    return await this._fetchAllNotes();
+  },
+  // 동기 버전 (이미 로드된 캐시 반환) — 렌더링 중에 사용
+  getRentalNotesSync() {
+    return cache.notes || {};
+  },
+  async saveRentalNotes(notes) {
+    // 사용 안 함 (개별 setRentalNote만 사용)
+    cache.notes = notes;
+  },
+  async setRentalNote(key, note) {
+    // key를 Firestore 문서 ID로 사용할 수 있게 안전하게 변환 (슬래시·점 등 치환)
+    const safeId = key.replace(/[\/\.\#\$\[\]]/g, '_');
+    if (note && note.trim()) {
+      await db.collection(C_RENTAL_NOTES).doc(safeId).set({
+        key, text: note.trim(), updatedAt: new Date().toISOString()
+      });
+      if (!cache.notes) cache.notes = {};
+      cache.notes[key] = note.trim();
+    } else {
+      await db.collection(C_RENTAL_NOTES).doc(safeId).delete().catch(() => {});
+      if (cache.notes) delete cache.notes[key];
+    }
+  },
+
+  // ========== 캐시 무효화 ==========
+  invalidateCache() {
+    cache.expenses = null;
+    cache.rentals = null;
+    cache.notes = null;
+    cache.expensesLoaded = false;
+    cache.rentalsLoaded = false;
+    cache.notesLoaded = false;
+  }
+};
+
+// 간단한 UUID 생성 (로컬에서만 사용 — Firestore는 자체 ID 부여)
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).substring(2, 8);
+}
+
+// 간단한 UUID 생성
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).substring(2, 8);
+}
+
+/* ========================================================
+   전역 상태
+   ======================================================== */
+const state = {
+  allData: [],          // 전체 데이터 (모든 source 포함, 기지급도 일반 내역으로 표시)
+  selectedYear: new Date().getFullYear(),
+  selectedMonths: 'all',
+  selectedSite: 'all',
+  selectedSource: 'all',
+  searchQuery: '',
+  monthlyChart: null,
+  categoryChart: null,
+  pendingFile1: null,
+  pendingFile2: null,
+  vendorListSort: 'amount-desc',
+  vendorListSearch: '',
+  rentalData: [],
+  rentalSearch: '',
+  rentalSite: 'all',
+  rentalSort: 'vendor',
+  pendingRental: null
+};
+
+const KOR_MONTHS = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+
+/* ========================================================
+   유틸
+   ======================================================== */
+function fmt(n) {
+  if (n == null || isNaN(n)) return '0';
+  return Math.round(n).toLocaleString('ko-KR');
+}
+function fmtShort(n) {
+  if (n == null || isNaN(n)) return '0';
+  const v = Math.abs(n);
+  if (v >= 1e8) return (n/1e8).toFixed(1)+'억';
+  if (v >= 1e4) return Math.round(n/1e4).toLocaleString()+'만';
+  return fmt(n);
+}
+function toast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + type;
+  setTimeout(()=>{ t.className = 'toast'; }, 3000);
+}
+function showLoading(show) {
+  document.getElementById('loadingOverlay').classList.toggle('show', show);
+}
+
+/* ========================================================
+   인증 — PIN 게이트로 대체됨
+   ======================================================== */
+window.addEventListener('DOMContentLoaded', () => {
+  setupPinGate();
+});
+
+/* ========================================================
+   앱 초기화
+   ======================================================== */
+async function initApp() {
+  setupYearSelector();
+  setupMonthFilters();
+  setupSourceFilters();
+  setupTabs();
+  setupSearch();
+  setupUpload();
+  setupDataManagement();
+  setupRental();
+  await loadData();
+  loadRentalData();
+}
+
+function setupDataManagement() {
+  // 백업 — 전체 데이터를 JSON 파일로 다운로드
+  document.getElementById('dataBackupBtn').onclick = async () => {
+    showLoading(true);
+    try {
+      const all = await storage.getAll();
+      const rentals = await storage.getRentals();
+      const notes = await storage.getRentalNotes();
+      if (all.length === 0 && rentals.length === 0) { toast('백업할 데이터가 없습니다', 'error'); return; }
+      const payload = {
+        version: 3,
+        exportedAt: new Date().toISOString(),
+        count: all.length,
+        rentalCount: rentals.length,
+        data: all,
+        rentals: rentals,
+        rentalNotes: notes
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const stamp = new Date().toISOString().slice(0,10).replace(/-/g,'');
+      a.download = `QUETTA_비용데이터_백업_${stamp}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast(`✓ 지출 ${all.length}건 + 렌탈 ${rentals.length}건 백업 완료`, 'success');
+    } catch (e) {
+      toast('백업 실패: ' + e.message, 'error');
+    } finally { showLoading(false); }
+  };
+
+  // 복원 — JSON 파일 업로드
+  document.getElementById('dataRestoreBtn').onclick = () => {
+    document.getElementById('restoreFileInput').click();
+  };
+  document.getElementById('restoreFileInput').onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    showLoading(true);
+    try {
+      const text = await file.text();
+      const payload = JSON.parse(text);
+      if (!payload.data || !Array.isArray(payload.data)) {
+        toast('올바른 백업 파일이 아닙니다', 'error');
+        return;
+      }
+      const current = await storage.getAll();
+      const currentRentals = await storage.getRentals();
+      if (current.length > 0 || currentRentals.length > 0) {
+        if (!confirm(`현재 지출 ${current.length}건, 렌탈 ${currentRentals.length}건이 있습니다.\n\n⚠️ 복원은 클라우드의 모든 기존 데이터를 삭제하고 파일 내용으로 교체합니다.\n이 작업은 되돌릴 수 없습니다.\n\n계속할까요?`)) {
+          e.target.value = '';
+          return;
+        }
+      }
+      // 지출 전체 교체
+      await storage.deleteWhere({});  // 모두 삭제
+      // 백업 파일의 레코드에는 id가 붙어있을 수 있으니 제거
+      const freshData = payload.data.map(({id, ...rest}) => rest);
+      await storage.addMany(freshData);
+      // 렌탈 전체 교체
+      if (Array.isArray(payload.rentals)) {
+        const freshRentals = payload.rentals.map(({id, ...rest}) => rest);
+        await storage.saveRentals(freshRentals);
+      }
+      // 비고 복원 (한 개씩)
+      if (payload.rentalNotes && typeof payload.rentalNotes === 'object') {
+        for (const [key, text] of Object.entries(payload.rentalNotes)) {
+          await storage.setRentalNote(key, text);
+        }
+      }
+      const rentalN = payload.rentals ? payload.rentals.length : 0;
+      toast(`✓ 지출 ${payload.data.length}건 + 렌탈 ${rentalN}건 복원 완료`, 'success');
+      await loadData();
+      await loadRentalData();
+      await renderUploadStatus();
+    } catch (err) {
+      console.error(err);
+      toast('복원 실패: ' + err.message, 'error');
+    } finally {
+      showLoading(false);
+      e.target.value = '';
+    }
+  };
+
+  // 월별 삭제 — 모달 열기
+  document.getElementById('dataDeleteBtn').onclick = () => {
+    openDeleteByMonthModal();
+  };
+}
+
+function setupYearSelector() {
+  const now = new Date();
+  const curYear = now.getFullYear();
+  const yearSel = document.getElementById('yearSelect');
+  const monthHeaderSel = document.getElementById('monthHeaderSelect');
+  const uploadYear = document.getElementById('uploadYear');
+  const uploadMonth = document.getElementById('uploadMonth');
+  const deleteYear = document.getElementById('deleteYear');
+  const deleteMonth = document.getElementById('deleteMonth');
+  const years = [];
+  for (let y = curYear + 1; y >= 2024; y--) years.push(y);
+  years.forEach(y => {
+    yearSel.insertAdjacentHTML('beforeend', `<option value="${y}">${y}년</option>`);
+    uploadYear.insertAdjacentHTML('beforeend', `<option value="${y}">${y}년</option>`);
+    deleteYear.insertAdjacentHTML('beforeend', `<option value="${y}">${y}년</option>`);
+  });
+  yearSel.value = state.selectedYear;
+  uploadYear.value = state.selectedYear;
+  deleteYear.value = state.selectedYear;
+  KOR_MONTHS.forEach((m, i) => {
+    monthHeaderSel.insertAdjacentHTML('beforeend', `<option value="${i+1}">${m}</option>`);
+    uploadMonth.insertAdjacentHTML('beforeend', `<option value="${i+1}">${m}</option>`);
+    deleteMonth.insertAdjacentHTML('beforeend', `<option value="${i+1}">${m}</option>`);
+  });
+  uploadMonth.value = now.getMonth() + 1;
+  deleteMonth.value = now.getMonth() + 1;
+
+  yearSel.onchange = async () => {
+    state.selectedYear = parseInt(yearSel.value);
+    await loadData();
+  };
+  monthHeaderSel.onchange = () => {
+    state.selectedMonths = monthHeaderSel.value;
+    // 칩 필터도 동기화
+    document.querySelectorAll('#monthFilters .filter-chip').forEach(c => {
+      c.classList.toggle('active', c.dataset.month === monthHeaderSel.value);
+    });
+    renderView();
+  };
+  uploadYear.onchange = uploadMonth.onchange = checkUploadWarnings;
+}
+
+function setupMonthFilters() {
+  const wrap = document.getElementById('monthFilters');
+  KOR_MONTHS.forEach((m, i) => {
+    wrap.insertAdjacentHTML('beforeend', `<button class="filter-chip" data-month="${i+1}">${m}</button>`);
+  });
+  wrap.addEventListener('click', (e) => {
+    if (!e.target.classList.contains('filter-chip')) return;
+    wrap.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+    e.target.classList.add('active');
+    state.selectedMonths = e.target.dataset.month;
+    // 헤더 셀렉트 동기화
+    document.getElementById('monthHeaderSelect').value = e.target.dataset.month;
+    renderView();
+  });
+}
+
+function setupSourceFilters() {
+  const wrap = document.getElementById('sourceFilters');
+  const sources = [
+    {id:'all', label:'전체'},
+    {id:'미지급', label:'미지급'},
+    {id:'자동이체', label:'자동이체'},
+    {id:'기지급', label:'기지급'}
+  ];
+  sources.forEach((s, i) => {
+    wrap.insertAdjacentHTML('beforeend',
+      `<button class="filter-chip ${i===0?'active':''}" data-source="${s.id}">${s.label}</button>`);
+  });
+  wrap.addEventListener('click', (e) => {
+    if (!e.target.classList.contains('filter-chip')) return;
+    wrap.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+    e.target.classList.add('active');
+    state.selectedSource = e.target.dataset.source;
+    renderView();
+  });
+}
+
+function rebuildSiteFilters() {
+  const sites = [...new Set(state.allData.map(d => d.사업장).filter(Boolean))].sort();
+  const wrap = document.getElementById('siteFilters');
+  wrap.innerHTML = `<button class="filter-chip active" data-site="all">전체</button>` +
+    sites.map(s => `<button class="filter-chip" data-site="${s}">${s}</button>`).join('');
+  wrap.onclick = (e) => {
+    if (!e.target.classList.contains('filter-chip')) return;
+    wrap.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+    e.target.classList.add('active');
+    state.selectedSite = e.target.dataset.site;
+    renderView();
+  };
+}
+
+function setupTabs() {
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.onclick = () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+      if (btn.dataset.tab === 'upload') renderUploadStatus();  // async지만 기다릴 필요 없음
+    };
+  });
+}
+
+function setupSearch() {
+  let t;
+  document.getElementById('searchInput').oninput = (e) => {
+    clearTimeout(t);
+    t = setTimeout(() => {
+      state.searchQuery = e.target.value.trim().toLowerCase();
+      renderView();
+    }, 200);
+  };
+}
+
+/* ========================================================
+   데이터 로드
+   ======================================================== */
+async function loadData() {
+  try {
+    state.allData = await storage.query({year: state.selectedYear});
+    rebuildSiteFilters();
+    renderView();
+  } catch (e) {
+    console.error(e);
+    toast('데이터 로드 실패: ' + e.message, 'error');
+  }
+}
+
+/* ========================================================
+   필터링
+   ======================================================== */
+function getFilteredData() {
+  return state.allData.filter(d => {
+    if (state.selectedMonths !== 'all' && d.month !== parseInt(state.selectedMonths)) return false;
+    if (state.selectedSite !== 'all' && d.사업장 !== state.selectedSite) return false;
+    if (state.selectedSource !== 'all' && d.source !== state.selectedSource) return false;
+    if (state.searchQuery) {
+      const q = state.searchQuery;
+      const hay = [d.거래처, d.내용, d.방법, d.사업장, d.비고]
+        .filter(Boolean).join(' ').toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+/* ========================================================
+   조회 탭 렌더
+   ======================================================== */
+async function renderView() {
+  const data = getFilteredData();
+  // 통계
+  const total = data.reduce((s,d)=>s+(d.금액||0), 0);
+  document.getElementById('statYearTotal').textContent = fmtShort(total) + '원';
+  const months = new Set(data.map(d=>d.month));
+  document.getElementById('statYearMonths').textContent = months.size + '개월 데이터';
+  const vendors = new Set(data.map(d=>d.거래처));
+  document.getElementById('statVendorCount').textContent = vendors.size + '개';
+  document.getElementById('statAvgMonthly').textContent = months.size > 0 ? fmtShort(total/months.size) + '원' : '-';
+
+  // YoY
+  await computeYoY();
+
+  renderVendors(data);
+  renderTable(data);
+  renderMonthlyChart(data);
+  renderCategoryChart(data);
+}
+
+async function computeYoY() {
+  try {
+    const prevYear = state.selectedYear - 1;
+    const prevData = await storage.query({year: prevYear});
+    let prevTotal = 0;
+    const monthFilter = state.selectedMonths;
+    prevData.forEach(v => {
+      if (monthFilter !== 'all' && v.month !== parseInt(monthFilter)) return;
+      if (state.selectedSite !== 'all' && v.사업장 !== state.selectedSite) return;
+      if (state.selectedSource !== 'all' && v.source !== state.selectedSource) return;
+      prevTotal += v.금액 || 0;
+    });
+    const curTotal = getFilteredData().reduce((s,d)=>s+(d.금액||0),0);
+    if (prevTotal === 0) {
+      document.getElementById('statYoY').textContent = '-';
+      document.getElementById('statYoYSub').textContent = '전년 데이터 없음';
+    } else {
+      const diff = curTotal - prevTotal;
+      const pct = (diff / prevTotal * 100).toFixed(1);
+      const sign = diff >= 0 ? '▲' : '▼';
+      const color = diff >= 0 ? '#E74C3C' : '#27AE60';
+      document.getElementById('statYoY').innerHTML =
+        `<span style="color:${color}">${sign} ${Math.abs(pct)}%</span>`;
+      document.getElementById('statYoYSub').textContent =
+        `${prevYear}년 ${fmtShort(prevTotal)}원`;
+    }
+  } catch (e) {
+    document.getElementById('statYoY').textContent = '-';
+  }
+}
+
+function renderVendors(data) {
+  const grid = document.getElementById('vendorsGrid');
+  const map = new Map();
+  data.forEach(d => {
+    const key = d.거래처;
+    if (!map.has(key)) map.set(key, { 거래처: key, total: 0, count: 0, months: new Set() });
+    const v = map.get(key);
+    v.total += d.금액 || 0;
+    v.count++;
+    v.months.add(d.month);
+  });
+  const vendors = [...map.values()].sort((a,b) => b.total - a.total);
+  document.getElementById('vendorCount').textContent = `(${vendors.length}개)`;
+  if (vendors.length === 0) {
+    grid.innerHTML = '<div class="empty-state"><div class="icon">🏢</div><div class="msg">표시할 거래처가 없습니다</div></div>';
+    return;
+  }
+  grid.innerHTML = vendors.map(v => `
+    <div class="vendor-card" data-vendor="${escapeHtml(v.거래처)}">
+      <div class="vendor-name" title="${escapeHtml(v.거래처)}">${escapeHtml(v.거래처)}</div>
+      <div class="vendor-amount">${fmt(v.total)}원</div>
+      <div class="vendor-meta">
+        <span>${v.count}건</span>
+        <span>${v.months.size}개월</span>
+      </div>
+    </div>
+  `).join('');
+  grid.querySelectorAll('.vendor-card').forEach(card => {
+    card.onclick = () => openVendorDetail(card.dataset.vendor);
+  });
+}
+
+function renderTable(data) {
+  const tbody = document.getElementById('dataTableBody');
+  if (data.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-light)">데이터가 없습니다</td></tr>`;
+    document.getElementById('dataTableFooter').textContent = '합계: -';
+    return;
+  }
+  const sorted = [...data].sort((a,b) => (b.date||'').localeCompare(a.date||''));
+  tbody.innerHTML = sorted.slice(0, 500).map(d => `
+    <tr>
+      <td>${d.date || ''}</td>
+      <td>${escapeHtml(d.사업장 || '')}</td>
+      <td>${escapeHtml(d.거래처 || '')}</td>
+      <td>${escapeHtml(d.내용 || '')}</td>
+      <td>${d.방법 ? `<span class="badge ${d.방법}">${d.방법}</span>` : ''}</td>
+      <td><span class="badge ${d.source}">${d.source}</span></td>
+      <td class="amount">${fmt(d.금액)}</td>
+    </tr>
+  `).join('');
+  const total = data.reduce((s,d)=>s+(d.금액||0),0);
+  const suffix = sorted.length > 500 ? ` (상위 500건 표시 / 전체 ${sorted.length}건)` : '';
+  document.getElementById('dataTableFooter').textContent =
+    `합계: ${fmt(total)}원 (${sorted.length}건)${suffix}`;
+}
+
+function renderMonthlyChart(data) {
+  const byMonth = new Array(12).fill(0);
+  data.forEach(d => { if (d.month) byMonth[d.month-1] += d.금액 || 0; });
+  const ctx = document.getElementById('monthlyChart');
+  if (state.monthlyChart) state.monthlyChart.destroy();
+  state.monthlyChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: KOR_MONTHS,
+      datasets: [{
+        label: '월별 지출',
+        data: byMonth,
+        backgroundColor: byMonth.map((v,i) =>
+          state.selectedMonths === 'all' || parseInt(state.selectedMonths) === i+1
+            ? '#2BADA0' : '#D4E8E5'
+        ),
+        borderRadius: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => fmt(ctx.parsed.y) + '원'
+          }
+        }
+      },
+      scales: {
+        y: {
+          ticks: { callback: v => fmtShort(v) },
+          grid: { color: '#F0F3F5' }
+        },
+        x: { grid: { display: false } }
+      }
+    }
+  });
+  const total = byMonth.reduce((s,v)=>s+v,0);
+  document.getElementById('monthlyChartSub').textContent = `총 ${fmtShort(total)}원`;
+}
+
+function renderCategoryChart(data) {
+  const map = {};
+  data.forEach(d => {
+    const key = d.사업장 || '(미지정)';
+    map[key] = (map[key] || 0) + (d.금액 || 0);
+  });
+  const entries = Object.entries(map).sort((a,b)=>b[1]-a[1]);
+  const ctx = document.getElementById('categoryChart');
+  if (state.categoryChart) state.categoryChart.destroy();
+  const colors = ['#2BADA0','#D4BE52','#1B3D4E','#5FBFB5','#E1D080','#3D5C70','#8BD4CC','#EFE0A0'];
+  state.categoryChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: entries.map(([k])=>k),
+      datasets: [{
+        data: entries.map(([,v])=>v),
+        backgroundColor: colors.slice(0, entries.length),
+        borderWidth: 2,
+        borderColor: '#fff'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } } },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => {
+              const total = ctx.dataset.data.reduce((s,v)=>s+v,0);
+              const pct = total > 0 ? (ctx.parsed / total * 100).toFixed(1) : 0;
+              return `${ctx.label}: ${fmt(ctx.parsed)}원 (${pct}%)`;
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+function escapeHtml(s) {
+  if (s == null) return '';
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* ========================================================
+   거래처 상세 모달
+   ======================================================== */
+function openVendorDetail(vendor) {
+  const records = state.allData.filter(d => d.거래처 === vendor &&
+    (state.selectedSite === 'all' || d.사업장 === state.selectedSite) &&
+    (state.selectedSource === 'all' || d.source === state.selectedSource)
+  );
+  const total = records.reduce((s,d)=>s+(d.금액||0), 0);
+  const byMonth = new Array(12).fill(0);
+  records.forEach(d => { if (d.month) byMonth[d.month-1] += d.금액 || 0; });
+  const activeMonths = byMonth.filter(v=>v>0);
+  const avg = activeMonths.length > 0 ? activeMonths.reduce((s,v)=>s+v,0) / activeMonths.length : 0;
+  const max = Math.max(...byMonth);
+  const min = activeMonths.length > 0 ? Math.min(...activeMonths) : 0;
+
+  document.getElementById('vendorModalTitle').textContent = vendor;
+  const sorted = [...records].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+
+  document.getElementById('vendorModalBody').innerHTML = `
+    <div class="vendor-summary">
+      <div class="summary-cell">
+        <div class="label">연간 총액</div>
+        <div class="value">${fmt(total)}원</div>
+      </div>
+      <div class="summary-cell">
+        <div class="label">거래 건수</div>
+        <div class="value">${records.length}건</div>
+      </div>
+      <div class="summary-cell">
+        <div class="label">월 평균</div>
+        <div class="value">${fmt(avg)}원</div>
+      </div>
+      <div class="summary-cell">
+        <div class="label">최대 월</div>
+        <div class="value">${fmt(max)}원</div>
+      </div>
+      <div class="summary-cell">
+        <div class="label">최소 월</div>
+        <div class="value">${fmt(min)}원</div>
+      </div>
+    </div>
+
+    <h3 style="font-size:13px;color:var(--navy);margin-bottom:10px">📅 월별 금액</h3>
+    <div class="monthly-grid">
+      ${byMonth.map((v, i) => `
+        <div class="month-box ${v>0?'has-data':''}">
+          <div class="m">${i+1}월</div>
+          <div class="v">${v>0 ? fmtShort(v) : '-'}</div>
+        </div>
+      `).join('')}
+    </div>
+
+    <h3 style="font-size:13px;color:var(--navy);margin-bottom:10px">📋 상세 내역</h3>
+    <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>일자</th>
+            <th>사업장</th>
+            <th>내용</th>
+            <th>방법</th>
+            <th>출처</th>
+            <th class="amount">금액</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${sorted.map(d => `
+            <tr>
+              <td>${d.date || ''}</td>
+              <td>${escapeHtml(d.사업장 || '')}</td>
+              <td>${escapeHtml(d.내용 || '')}</td>
+              <td>${d.방법 ? `<span class="badge ${d.방법}">${d.방법}</span>` : ''}</td>
+              <td><span class="badge ${d.source}">${d.source}</span></td>
+              <td class="amount">${fmt(d.금액)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+  document.getElementById('vendorModal').classList.add('show');
+}
+
+document.getElementById('vendorModalClose').onclick = () =>
+  document.getElementById('vendorModal').classList.remove('show');
+document.getElementById('vendorModal').onclick = (e) => {
+  if (e.target === e.currentTarget) e.currentTarget.classList.remove('show');
+};
+
+/* ========================================================
+   전체 거래처 목록 모달
+   ======================================================== */
+function openVendorListModal() {
+  state.vendorListSearch = '';
+  state.vendorListSort = 'amount-desc';
+  document.getElementById('vendorListSearch').value = '';
+  document.querySelectorAll('#vendorListModal .filter-chip').forEach(c => {
+    c.classList.toggle('active', c.dataset.vsort === 'amount-desc');
+  });
+  renderVendorList();
+  document.getElementById('vendorListModal').classList.add('show');
+}
+
+function renderVendorList() {
+  const data = getFilteredData();
+  const map = new Map();
+  data.forEach(d => {
+    const key = d.거래처 || '(미지정)';
+    if (!map.has(key)) map.set(key, { 거래처: key, total: 0, count: 0, months: new Set() });
+    const v = map.get(key);
+    v.total += d.금액 || 0;
+    v.count++;
+    v.months.add(d.month);
+  });
+  let vendors = [...map.values()];
+  // 검색 필터
+  const q = state.vendorListSearch;
+  if (q) vendors = vendors.filter(v => v.거래처.toLowerCase().includes(q));
+  // 정렬
+  const sortFns = {
+    'amount-desc': (a,b) => b.total - a.total,
+    'amount-asc':  (a,b) => a.total - b.total,
+    'name':        (a,b) => a.거래처.localeCompare(b.거래처, 'ko'),
+    'count':       (a,b) => b.count - a.count
+  };
+  vendors.sort(sortFns[state.vendorListSort] || sortFns['amount-desc']);
+
+  const totalSum = vendors.reduce((s,v)=>s+v.total, 0);
+  document.getElementById('vendorListSummary').textContent =
+    `전체 ${vendors.length}개 거래처 / 합계 ${fmt(totalSum)}원`;
+
+  const body = document.getElementById('vendorListBody');
+  if (vendors.length === 0) {
+    body.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text-light)">표시할 거래처가 없습니다</td></tr>`;
+    return;
+  }
+  body.innerHTML = vendors.map((v, i) => `
+    <tr data-vendor="${escapeHtml(v.거래처)}" style="cursor:pointer">
+      <td style="color:var(--text-light)">${i+1}</td>
+      <td style="font-weight:500">${escapeHtml(v.거래처)}</td>
+      <td class="amount">${fmt(v.total)}</td>
+      <td style="text-align:center">${v.count}</td>
+      <td style="text-align:center">${v.months.size}</td>
+    </tr>
+  `).join('');
+  // 행 클릭 → 거래처 상세
+  body.querySelectorAll('tr[data-vendor]').forEach(tr => {
+    tr.onclick = () => {
+      document.getElementById('vendorListModal').classList.remove('show');
+      openVendorDetail(tr.dataset.vendor);
+    };
+  });
+}
+
+document.getElementById('vendorListModalClose').onclick = () =>
+  document.getElementById('vendorListModal').classList.remove('show');
+document.getElementById('vendorListModal').onclick = (e) => {
+  if (e.target === e.currentTarget) e.currentTarget.classList.remove('show');
+};
+document.getElementById('vendorListSearch').oninput = (e) => {
+  state.vendorListSearch = e.target.value.trim().toLowerCase();
+  renderVendorList();
+};
+document.querySelectorAll('#vendorListModal .filter-chip').forEach(chip => {
+  chip.onclick = () => {
+    document.querySelectorAll('#vendorListModal .filter-chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    state.vendorListSort = chip.dataset.vsort;
+    renderVendorList();
+  };
+});
+
+// 거래처 수 카드 클릭 → 모달 열기
+document.getElementById('vendorCountCard').onclick = () => openVendorListModal();
+
+/* ========================================================
+   월별 데이터 조회 모달 (업로드 탭 [조회] 버튼)
+   ======================================================== */
+async function openMonthDataModal(year, month) {
+  const data = await storage.query({year, month});
+  document.getElementById('monthDataModalTitle').textContent =
+    `${year}년 ${month}월 데이터 조회`;
+
+  const summaryEl = document.getElementById('monthDataSummary');
+  const contentEl = document.getElementById('monthDataContent');
+
+  if (data.length === 0) {
+    summaryEl.innerHTML = '';
+    contentEl.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text-light)">
+      <div style="font-size:48px;margin-bottom:12px">📭</div>
+      <div>${year}년 ${month}월에는 저장된 데이터가 없습니다</div>
+    </div>`;
+    document.getElementById('monthDataDeleteBtn').style.display = 'none';
+  } else {
+    document.getElementById('monthDataDeleteBtn').style.display = 'inline-block';
+    const total = data.reduce((s,d)=>s+(d.금액||0),0);
+    const bySrc = {};
+    data.forEach(d => {
+      if (!bySrc[d.source]) bySrc[d.source] = {count:0, sum:0};
+      bySrc[d.source].count++;
+      bySrc[d.source].sum += d.금액 || 0;
+    });
+    summaryEl.innerHTML = `
+      <div class="vendor-summary">
+        <div class="summary-cell">
+          <div class="label">총 건수</div>
+          <div class="value">${data.length}건</div>
+        </div>
+        <div class="summary-cell">
+          <div class="label">총 금액</div>
+          <div class="value">${fmt(total)}원</div>
+        </div>
+        ${Object.entries(bySrc).map(([src, v]) => `
+          <div class="summary-cell">
+            <div class="label">${src}</div>
+            <div class="value" style="font-size:14px">${v.count}건 · ${fmtShort(v.sum)}원</div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+    const sorted = [...data].sort((a,b) => (a.date||'').localeCompare(b.date||''));
+    contentEl.innerHTML = `
+      <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;max-height:50vh;overflow-y:auto">
+        <table class="data-table">
+          <thead style="position:sticky;top:0;background:var(--bg);z-index:1">
+            <tr>
+              <th>일자</th>
+              <th>사업장</th>
+              <th>거래처</th>
+              <th>내용</th>
+              <th>방법</th>
+              <th>출처</th>
+              <th class="amount">금액</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${sorted.map(d => `
+              <tr>
+                <td>${d.date || ''}</td>
+                <td>${escapeHtml(d.사업장 || '')}</td>
+                <td>${escapeHtml(d.거래처 || '')}</td>
+                <td>${escapeHtml(d.내용 || '')}</td>
+                <td>${d.방법 ? `<span class="badge ${d.방법}">${d.방법}</span>` : ''}</td>
+                <td><span class="badge ${d.source}">${d.source}</span></td>
+                <td class="amount">${fmt(d.금액)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+  // 삭제 버튼은 현재 보고 있는 연·월에 연결
+  document.getElementById('monthDataDeleteBtn').onclick = async () => {
+    if (!confirm(`${year}년 ${month}월 데이터(${data.length}건)를 삭제할까요?\n이 작업은 되돌릴 수 없습니다.`)) return;
+    showLoading(true);
+    try {
+      const deleted = await storage.deleteWhere({year, month});
+      toast(`✓ ${deleted}건 삭제 완료`, 'success');
+      document.getElementById('monthDataModal').classList.remove('show');
+      if (year === state.selectedYear) await loadData();
+      await renderUploadStatus();
+    } finally { showLoading(false); }
+  };
+  document.getElementById('monthDataModal').classList.add('show');
+}
+
+document.getElementById('monthDataModalClose').onclick =
+document.getElementById('monthDataCloseBtn').onclick = () =>
+  document.getElementById('monthDataModal').classList.remove('show');
+document.getElementById('monthDataModal').onclick = (e) => {
+  if (e.target === e.currentTarget) e.currentTarget.classList.remove('show');
+};
+
+/* ========================================================
+   월별 삭제 모달 (헤더 [🗑 월별 삭제] 버튼)
+   ======================================================== */
+function openDeleteByMonthModal() {
+  // 기본값: 현재 헤더에서 보고 있는 연·월
+  document.getElementById('deleteYear').value = state.selectedYear;
+  if (state.selectedMonths !== 'all') {
+    document.getElementById('deleteMonth').value = state.selectedMonths;
+  }
+  updateDeleteByMonthInfo();
+  document.getElementById('deleteByMonthModal').classList.add('show');
+}
+
+async function updateDeleteByMonthInfo() {
+  const year = parseInt(document.getElementById('deleteYear').value);
+  const month = parseInt(document.getElementById('deleteMonth').value);
+  const data = await storage.query({year, month});
+  const infoEl = document.getElementById('deleteByMonthInfo');
+  if (data.length === 0) {
+    infoEl.innerHTML = `<strong style="color:var(--text-light)">${year}년 ${month}월에는 저장된 데이터가 없습니다</strong>`;
+    document.getElementById('deleteByMonthConfirmBtn').disabled = true;
+    document.getElementById('deleteByMonthConfirmBtn').style.opacity = '0.5';
+  } else {
+    const total = data.reduce((s,d)=>s+(d.금액||0),0);
+    const bySrc = {};
+    data.forEach(d => { bySrc[d.source] = (bySrc[d.source]||0) + 1; });
+    const srcStr = Object.entries(bySrc).map(([k,v]) => `${k} ${v}건`).join(' · ');
+    infoEl.innerHTML = `
+      <div style="color:var(--navy);font-weight:600;margin-bottom:4px">${year}년 ${month}월 — 총 ${data.length}건 / ${fmt(total)}원</div>
+      <div style="font-size:12px">${srcStr}</div>
+    `;
+    document.getElementById('deleteByMonthConfirmBtn').disabled = false;
+    document.getElementById('deleteByMonthConfirmBtn').style.opacity = '1';
+  }
+}
+
+document.getElementById('deleteYear').onchange = updateDeleteByMonthInfo;
+document.getElementById('deleteMonth').onchange = updateDeleteByMonthInfo;
+
+document.getElementById('deleteByMonthModalClose').onclick =
+document.getElementById('deleteByMonthCancelBtn').onclick = () =>
+  document.getElementById('deleteByMonthModal').classList.remove('show');
+document.getElementById('deleteByMonthModal').onclick = (e) => {
+  if (e.target === e.currentTarget) e.currentTarget.classList.remove('show');
+};
+
+document.getElementById('deleteByMonthConfirmBtn').onclick = async () => {
+  const year = parseInt(document.getElementById('deleteYear').value);
+  const month = parseInt(document.getElementById('deleteMonth').value);
+  const data = await storage.query({year, month});
+  if (data.length === 0) return;
+  if (!confirm(`${year}년 ${month}월 데이터 ${data.length}건을 정말 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
+  showLoading(true);
+  try {
+    const deleted = await storage.deleteWhere({year, month});
+    toast(`✓ ${deleted}건 삭제 완료`, 'success');
+    document.getElementById('deleteByMonthModal').classList.remove('show');
+    if (year === state.selectedYear) await loadData();
+    await renderUploadStatus();
+  } finally { showLoading(false); }
+};
+
+/* ========================================================
+   업로드 탭 [🔍 조회] / [🗑 삭제] 버튼
+   ======================================================== */
+document.getElementById('viewMonthBtn').onclick = () => {
+  const year = parseInt(document.getElementById('uploadYear').value);
+  const month = parseInt(document.getElementById('uploadMonth').value);
+  openMonthDataModal(year, month);
+};
+
+document.getElementById('deleteMonthBtn').onclick = async () => {
+  const year = parseInt(document.getElementById('uploadYear').value);
+  const month = parseInt(document.getElementById('uploadMonth').value);
+  const data = await storage.query({year, month});
+  if (data.length === 0) {
+    toast(`${year}년 ${month}월에는 삭제할 데이터가 없습니다`, 'error');
+    return;
+  }
+  if (!confirm(`${year}년 ${month}월 데이터 ${data.length}건을 정말 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
+  showLoading(true);
+  try {
+    const deleted = await storage.deleteWhere({year, month});
+    toast(`✓ ${deleted}건 삭제 완료`, 'success');
+    if (year === state.selectedYear) await loadData();
+    await renderUploadStatus();
+    await checkUploadWarnings();
+  } finally { showLoading(false); }
+};
+
+/* ========================================================
+   엑셀 내보내기
+   ======================================================== */
+document.getElementById('exportBtn').onclick = () => {
+  const data = getFilteredData();
+  if (data.length === 0) { toast('내보낼 데이터가 없습니다', 'error'); return; }
+  const rows = data.map(d => ({
+    '일자': d.date || '',
+    '연도': d.year, '월': d.month,
+    '사업장': d.사업장 || '',
+    '거래처': d.거래처 || '',
+    '내용': d.내용 || '',
+    '방법': d.방법 || '',
+    '출처': d.source,
+    '금액': d.금액 || 0,
+    '비고': d.비고 || ''
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '지출내역');
+  const filename = `QUETTA_지출내역_${state.selectedYear}년.xlsx`;
+  XLSX.writeFile(wb, filename);
+  toast('엑셀 파일 다운로드 완료', 'success');
+};
+
+/* ========================================================
+   업로드
+   ======================================================== */
+function setupUpload() {
+  setupDropZone('dropZone1', 'fileInput1', handleFile1);
+  setupDropZone('dropZone2', 'fileInput2', handleFile2);
+  document.getElementById('uploadBtn1').onclick = () => uploadToFirestore(1);
+  document.getElementById('uploadBtn2').onclick = () => uploadToFirestore(2);
+}
+
+function setupDropZone(zoneId, inputId, handler) {
+  const zone = document.getElementById(zoneId);
+  const input = document.getElementById(inputId);
+  zone.onclick = () => input.click();
+  zone.ondragover = (e) => { e.preventDefault(); zone.classList.add('dragover'); };
+  zone.ondragleave = () => zone.classList.remove('dragover');
+  zone.ondrop = (e) => {
+    e.preventDefault();
+    zone.classList.remove('dragover');
+    if (e.dataTransfer.files.length) handler(e.dataTransfer.files[0]);
+  };
+  input.onchange = (e) => { if (e.target.files.length) handler(e.target.files[0]); };
+}
+
+async function handleFile1(file) {
+  try {
+    const data = await parseFile1(file);
+    state.pendingFile1 = { file, parsed: data };
+    renderPreview1(data, file.name);
+    document.getElementById('uploadBtn1').disabled = false;
+    checkUploadWarnings();
+  } catch (e) {
+    console.error(e);
+    toast('파일 파싱 실패: ' + e.message, 'error');
+  }
+}
+
+async function handleFile2(file) {
+  try {
+    const data = await parseFile2(file);
+    state.pendingFile2 = { file, parsed: data };
+    renderPreview2(data, file.name);
+    document.getElementById('uploadBtn2').disabled = false;
+    checkUploadWarnings();
+  } catch (e) {
+    console.error(e);
+    toast('파일 파싱 실패: ' + e.message, 'error');
+  }
+}
+
+/* ----- 파일1 파싱 ----- */
+async function parseFile1(file) {
+  const buf = await file.arrayBuffer();
+  const wb = XLSX.read(buf, { type: 'array' });
+  const sheet = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null, raw: false });
+
+  // 상단 결제내역 헤더 찾기 ("계정과목" 포함)
+  let headerRow1 = -1;
+  for (let i = 0; i < rows.length; i++) {
+    if (rows[i].some(c => c && String(c).trim() === '계정과목') &&
+        rows[i].some(c => c && String(c).includes('일'))) {
+      headerRow1 = i;
+      break;
+    }
+  }
+  if (headerRow1 < 0) throw new Error('계정과목 헤더를 찾지 못했습니다');
+
+  // 상단 섹션에서 컬럼 위치 파악
+  const hdr1 = rows[headerRow1].map(c => c ? String(c).trim() : '');
+  const col1 = {
+    계정과목: hdr1.findIndex(c => c === '계정과목'),
+    일자: hdr1.findIndex(c => c.replace(/\s/g,'') === '일자'),
+    내용: hdr1.findIndex(c => c.replace(/\s/g,'') === '내용'),
+    금액: hdr1.findIndex(c => c.replace(/\s/g,'') === '금액'),
+    업체명: hdr1.findIndex(c => c === '업체명'),
+    비고: hdr1.findIndex(c => c.replace(/\s/g,'') === '비고')
+  };
+
+  // 상단 데이터 파싱 (결제내역)
+  const paidRecords = [];
+  let curCategory = '';
+  for (let i = headerRow1 + 1; i < rows.length; i++) {
+    const r = rows[i];
+    // 다음 섹션 시작 감지 ("소계"류 또는 "선급금,기지급" 섹션 헤더)
+    const firstCell = r.find(c => c && String(c).trim() !== '');
+    if (firstCell) {
+      const fs = String(firstCell).replace(/\s/g,'');
+      if (fs.includes('소계') || fs.includes('총계') || fs.includes('소득세') ||
+          fs.includes('주민세') || fs.includes('4대보험') || fs.includes('종업원')) continue;
+      if (fs.includes('선급금') || fs.includes('기지급') || fs.includes('지급보류')) break;
+    }
+
+    const category = col1.계정과목 >= 0 ? r[col1.계정과목] : null;
+    const date = col1.일자 >= 0 ? r[col1.일자] : null;
+    const content = col1.내용 >= 0 ? r[col1.내용] : null;
+    const amount = col1.금액 >= 0 ? r[col1.금액] : null;
+    const vendor = col1.업체명 >= 0 ? r[col1.업체명] : null;
+    const note = col1.비고 >= 0 ? r[col1.비고] : null;
+
+    if (category && String(category).trim()) curCategory = String(category).trim();
+
+    // 유효 데이터 행: 내용과 금액이 있어야 함
+    const amt = normalizeAmount(amount);
+    if (content && amt != null) {
+      paidRecords.push({
+        계정과목: curCategory,
+        date: normalizeDate(date),
+        내용: String(content).trim(),
+        금액: amt,
+        거래처: vendor ? String(vendor).trim() : '',
+        비고: note ? String(note).trim() : '',
+        source: '미지급'
+      });
+    }
+  }
+
+  // 하단 섹션 (기지급/선급금) 파싱
+  let prepaidHeaderIdx = -1;
+  for (let i = headerRow1 + 1; i < rows.length; i++) {
+    const r = rows[i];
+    const firstText = r.filter(c => c != null).map(c => String(c)).join(' ');
+    if (firstText.includes('선급금') && firstText.includes('기지급')) {
+      // 다음 헤더 행 찾기
+      for (let j = i + 1; j < rows.length; j++) {
+        if (rows[j].some(c => c && String(c).trim() === '계정과목')) {
+          prepaidHeaderIdx = j;
+          break;
+        }
+      }
+      break;
+    }
+  }
+
+  const prepaidRecords = [];
+  if (prepaidHeaderIdx > 0) {
+    const hdr2 = rows[prepaidHeaderIdx].map(c => c ? String(c).trim() : '');
+    const col2 = {
+      계정과목: hdr2.findIndex(c => c === '계정과목'),
+      내용: hdr2.findIndex(c => c.replace(/\s/g,'') === '내용'),
+      금액: hdr2.findIndex(c => c.replace(/\s/g,'') === '금액'),
+      업체명: hdr2.findIndex(c => c.replace(/\s/g,'') === '업체명' || c === '업 체 명'),
+      결제일: hdr2.findIndex(c => c.replace(/\s/g,'') === '결제일'),
+      비고: hdr2.findIndex(c => c.replace(/\s/g,'') === '비고')
+    };
+    let curCat2 = '';
+    for (let i = prepaidHeaderIdx + 1; i < rows.length; i++) {
+      const r = rows[i];
+      const firstCell = r.find(c => c && String(c).trim() !== '');
+      if (firstCell) {
+        const fs = String(firstCell).replace(/\s/g,'');
+        if (fs.includes('소계') || fs.includes('총계')) continue;
+      }
+      const cat = col2.계정과목 >= 0 ? r[col2.계정과목] : null;
+      const content = col2.내용 >= 0 ? r[col2.내용] : null;
+      const amount = col2.금액 >= 0 ? r[col2.금액] : null;
+      const vendor = col2.업체명 >= 0 ? r[col2.업체명] : null;
+      const note = col2.비고 >= 0 ? r[col2.비고] : null;
+
+      if (cat && String(cat).trim()) curCat2 = String(cat).trim();
+
+      const amt = normalizeAmount(amount);
+      if (content && amt != null) {
+        prepaidRecords.push({
+          계정과목: curCat2,
+          date: '', // 일자 없음 - 업로드 시 말일로 채움
+          내용: String(content).trim(),
+          금액: amt,
+          거래처: vendor ? String(vendor).trim() : '',
+          비고: note ? String(note).trim() : '',
+          source: '기지급'
+        });
+      }
+    }
+  }
+
+  return { paid: paidRecords, prepaid: prepaidRecords };
+}
+
+/* ----- 파일2 파싱 ----- */
+async function parseFile2(file) {
+  const buf = await file.arrayBuffer();
+  const wb = XLSX.read(buf, { type: 'array' });
+  const sheet = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null, raw: false });
+
+  // 헤더 행 찾기
+  let headerRow = -1;
+  for (let i = 0; i < rows.length; i++) {
+    if (rows[i].some(c => c && String(c).includes('사업장')) &&
+        rows[i].some(c => c && String(c).includes('거래처'))) {
+      headerRow = i;
+      break;
+    }
+  }
+  if (headerRow < 0) throw new Error('헤더(사업장/거래처) 를 찾지 못했습니다');
+
+  const hdr = rows[headerRow].map(c => c ? String(c).trim() : '');
+  const col = {
+    사업장: hdr.findIndex(c => c === '사업장'),
+    거래처: hdr.findIndex(c => c === '거래처명' || c.includes('거래처')),
+    내역: hdr.findIndex(c => c === '내역'),
+    이체일자: hdr.findIndex(c => c === '이체일자'),
+    방법: hdr.findIndex(c => c === '방법'),
+    금액: hdr.findIndex(c => c === '금액')
+  };
+
+  const records = [];
+  let curSite = '';
+  let curVendor = '';
+  for (let i = headerRow + 1; i < rows.length; i++) {
+    const r = rows[i];
+    const firstCell = r[0];
+    if (firstCell && String(firstCell).replace(/\s/g,'').includes('외')) continue; // "외 39건"
+    const method = col.방법 >= 0 ? r[col.방법] : null;
+    if (method && String(method).trim() === '합계') continue;
+
+    const site = col.사업장 >= 0 ? r[col.사업장] : null;
+    const vendor = col.거래처 >= 0 ? r[col.거래처] : null;
+    const content = col.내역 >= 0 ? r[col.내역] : null;
+    const rawDay = col.이체일자 >= 0 ? r[col.이체일자] : null;
+    const amount = col.금액 >= 0 ? r[col.금액] : null;
+
+    if (site && String(site).trim()) curSite = String(site).trim();
+    if (vendor && String(vendor).trim()) curVendor = String(vendor).trim();
+
+    // 유효 데이터: 내역 + 금액
+    const amt = normalizeAmount(amount);
+    if (content && amt != null) {
+      // 일자 추출 (예: "10일" → 10)
+      let day = null;
+      if (rawDay) {
+        const m = String(rawDay).match(/(\d+)/);
+        if (m) day = parseInt(m[1]);
+      }
+      records.push({
+        사업장: curSite,
+        거래처: curVendor,
+        내용: String(content).trim(),
+        day,
+        방법: method ? String(method).trim() : '',
+        금액: amt,
+        source: '자동이체'
+      });
+    }
+  }
+  return records;
+}
+
+function normalizeDate(v) {
+  if (!v) return '';
+  if (v instanceof Date) {
+    return v.toISOString().slice(0, 10);
+  }
+  const s = String(v).trim();
+  // Excel 직렬화 숫자
+  if (/^\d+(\.\d+)?$/.test(s) && parseFloat(s) > 40000) {
+    const d = XLSX.SSF.parse_date_code(parseFloat(s));
+    if (d) return `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`;
+  }
+  // YYYY-MM-DD or YYYY.MM.DD etc
+  const m = s.match(/(\d{4})[-.\/](\d{1,2})[-.\/](\d{1,2})/);
+  if (m) return `${m[1]}-${String(m[2]).padStart(2,'0')}-${String(m[3]).padStart(2,'0')}`;
+  return s;
+}
+
+// 엑셀 셀의 금액을 숫자로 정규화
+// 셀이 "#,##0" 형식으로 표시되면 sheet_to_json({raw:false})가 "455,400" 같은 문자열을 반환함
+// parseFloat("455,400") === 455 가 되는 버그를 막기 위해 콤마 제거 후 변환
+function normalizeAmount(v) {
+  if (v == null || v === '') return null;
+  if (typeof v === 'number') return isNaN(v) ? null : v;
+  // 문자열: 콤마, 공백, 통화기호, 괄호 등 제거
+  const cleaned = String(v)
+    .replace(/,/g, '')          // 천 단위 콤마
+    .replace(/\s/g, '')          // 공백
+    .replace(/[₩원]/g, '')       // 통화기호
+    .replace(/^\((.+)\)$/, '-$1'); // 회계 형식 (123) → -123
+  const n = parseFloat(cleaned);
+  return isNaN(n) ? null : n;
+}
+
+function renderPreview1(data, name) {
+  const el = document.getElementById('preview1');
+  const total = data.paid.reduce((s,d)=>s+(d.금액||0),0) + data.prepaid.reduce((s,d)=>s+(d.금액||0),0);
+  el.innerHTML = `
+    <div class="file-name">
+      <strong>📄 ${escapeHtml(name)}</strong>
+      <span class="count-tag">${data.paid.length + data.prepaid.length}건</span>
+    </div>
+    <div style="margin-bottom:8px;font-size:12px">
+      • 결제내역(미지급): <strong>${data.paid.length}건</strong> / ${fmt(data.paid.reduce((s,d)=>s+(d.금액||0),0))}원<br>
+      • 기지급·선급금: <strong>${data.prepaid.length}건</strong> / ${fmt(data.prepaid.reduce((s,d)=>s+(d.금액||0),0))}원<br>
+      • 합계: <strong>${fmt(total)}원</strong>
+    </div>
+    <table class="preview-table">
+      <thead><tr><th>일자</th><th>내용</th><th>거래처</th><th style="text-align:right">금액</th></tr></thead>
+      <tbody>
+        ${[...data.paid, ...data.prepaid].slice(0,5).map(d=>`
+          <tr>
+            <td>${d.date||'(말일)'}</td>
+            <td>${escapeHtml(d.내용)}</td>
+            <td>${escapeHtml(d.거래처)}</td>
+            <td style="text-align:right">${fmt(d.금액)}</td>
+          </tr>`).join('')}
+        ${data.paid.length + data.prepaid.length > 5 ? `<tr><td colspan="4" style="text-align:center;color:var(--text-light)">… 외 ${data.paid.length + data.prepaid.length - 5}건</td></tr>` : ''}
+      </tbody>
+    </table>
+  `;
+  el.classList.add('show');
+}
+
+function renderPreview2(data, name) {
+  const el = document.getElementById('preview2');
+  const total = data.reduce((s,d)=>s+(d.금액||0), 0);
+  el.innerHTML = `
+    <div class="file-name">
+      <strong>📄 ${escapeHtml(name)}</strong>
+      <span class="count-tag">${data.length}건</span>
+    </div>
+    <div style="margin-bottom:8px;font-size:12px">
+      • 자동이체·송금: <strong>${data.length}건</strong> / ${fmt(total)}원
+    </div>
+    <table class="preview-table">
+      <thead><tr><th>일</th><th>사업장</th><th>거래처</th><th>내용</th><th>방법</th><th style="text-align:right">금액</th></tr></thead>
+      <tbody>
+        ${data.slice(0,5).map(d=>`
+          <tr>
+            <td>${d.day||''}</td>
+            <td>${escapeHtml(d.사업장)}</td>
+            <td>${escapeHtml(d.거래처)}</td>
+            <td>${escapeHtml(d.내용)}</td>
+            <td>${escapeHtml(d.방법)}</td>
+            <td style="text-align:right">${fmt(d.금액)}</td>
+          </tr>`).join('')}
+        ${data.length > 5 ? `<tr><td colspan="6" style="text-align:center;color:var(--text-light)">… 외 ${data.length - 5}건</td></tr>` : ''}
+      </tbody>
+    </table>
+  `;
+  el.classList.add('show');
+}
+
+async function checkUploadWarnings() {
+  const year = parseInt(document.getElementById('uploadYear').value);
+  const month = parseInt(document.getElementById('uploadMonth').value);
+
+  if (state.pendingFile1) {
+    const hasData = await checkExistingData(year, month, ['미지급', '기지급']);
+    document.getElementById('warning1').classList.toggle('show', hasData);
+  }
+  if (state.pendingFile2) {
+    const hasData = await checkExistingData(year, month, ['자동이체']);
+    document.getElementById('warning2').classList.toggle('show', hasData);
+  }
+}
+
+async function checkExistingData(year, month, sources) {
+  const d = await storage.query({year, month, source: sources});
+  return d.length > 0;
+}
+
+async function uploadToFirestore(fileNum) {
+  const year = parseInt(document.getElementById('uploadYear').value);
+  const month = parseInt(document.getElementById('uploadMonth').value);
+  const lastDay = new Date(year, month, 0).getDate();
+  const lastDateStr = `${year}-${String(month).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
+  const now = new Date().toISOString();
+
+  try {
+    if (fileNum === 1) {
+      if (!state.pendingFile1) return;
+      const { paid, prepaid } = state.pendingFile1.parsed;
+
+      // 기존 미지급 + 기지급 데이터 삭제
+      await storage.deleteWhere({year, month, source: ['미지급', '기지급']});
+
+      const records = [];
+      const pushRec = (d, source) => {
+        records.push({
+          id: uid(),
+          year, month,
+          date: d.date || lastDateStr,
+          사업장: '강남대성기숙학원',
+          거래처: d.거래처 || '',
+          내용: d.내용 || '',
+          방법: '',
+          계정과목: d.계정과목 || '',
+          비고: d.비고 || '',
+          금액: d.금액 || 0,
+          source,
+          uploadedAt: now
+        });
+      };
+      paid.forEach(d => pushRec(d, '미지급'));
+      prepaid.forEach(d => pushRec(d, '기지급'));
+      await storage.addMany(records);
+
+      toast(`✓ ${records.length}건 업로드 완료`, 'success');
+      state.pendingFile1 = null;
+      document.getElementById('preview1').classList.remove('show');
+      document.getElementById('uploadBtn1').disabled = true;
+      document.getElementById('fileInput1').value = '';
+    } else {
+      if (!state.pendingFile2) return;
+      const data = state.pendingFile2.parsed;
+
+      await storage.deleteWhere({year, month, source: '자동이체'});
+
+      const records = data.map(d => {
+        const dateStr = d.day
+          ? `${year}-${String(month).padStart(2,'0')}-${String(d.day).padStart(2,'0')}`
+          : lastDateStr;
+        return {
+          id: uid(),
+          year, month,
+          date: dateStr,
+          사업장: d.사업장 || '',
+          거래처: d.거래처 || '',
+          내용: d.내용 || '',
+          방법: d.방법 || '',
+          계정과목: '',
+          비고: '',
+          금액: d.금액 || 0,
+          source: '자동이체',
+          uploadedAt: now
+        };
+      });
+      await storage.addMany(records);
+
+      toast(`✓ ${records.length}건 업로드 완료`, 'success');
+      state.pendingFile2 = null;
+      document.getElementById('preview2').classList.remove('show');
+      document.getElementById('uploadBtn2').disabled = true;
+      document.getElementById('fileInput2').value = '';
+    }
+
+    if (year === state.selectedYear) await loadData();
+    renderUploadStatus();
+  } catch (e) {
+    console.error(e);
+    toast('업로드 실패: ' + e.message, 'error');
+  }
+}
+
+// deleteExistingData — localStorage 버전에서는 storage.deleteWhere로 대체됨 (제거)
+
+async function renderUploadStatus() {
+  const el = document.getElementById('uploadStatus');
+  try {
+    const years = [];
+    for (let y = state.selectedYear - 1; y <= state.selectedYear + 1; y++) years.push(y);
+    const all = await storage.getAll();
+    const results = {};
+    for (const y of years) {
+      const byMonth = {};
+      all.filter(d => d.year === y).forEach(v => {
+        if (!byMonth[v.month]) byMonth[v.month] = { 미지급:0, 자동이체:0, 기지급:0, total:0 };
+        byMonth[v.month][v.source] = (byMonth[v.month][v.source] || 0) + 1;
+        byMonth[v.month].total++;
+      });
+      results[y] = byMonth;
+    }
+    el.innerHTML = years.map(y => {
+      const months = results[y];
+      const monthCells = KOR_MONTHS.map((m, i) => {
+        const d = months[i+1];
+        if (!d) return `<td style="padding:6px;border:1px solid var(--border);text-align:center;color:#ccc">-</td>`;
+        const tooltip = `미지급 ${d.미지급||0} / 자동이체 ${d.자동이체||0} / 기지급 ${d.기지급||0}`;
+        return `<td style="padding:6px;border:1px solid var(--border);text-align:center;color:var(--teal-dark);font-weight:600" title="${tooltip}">${d.total}</td>`;
+      }).join('');
+      return `
+        <div style="margin-bottom:14px">
+          <div style="font-weight:600;color:var(--navy);margin-bottom:6px">${y}년</div>
+          <table style="width:100%;border-collapse:collapse;font-size:12px">
+            <thead>
+              <tr>${KOR_MONTHS.map(m => `<th style="padding:6px;border:1px solid var(--border);background:var(--bg);color:var(--text-light);font-size:11px;font-weight:600">${m}</th>`).join('')}</tr>
+            </thead>
+            <tbody><tr>${monthCells}</tr></tbody>
+          </table>
+        </div>
+      `;
+    }).join('') + '<div style="font-size:11px;color:var(--text-light);margin-top:8px">※ 각 칸의 숫자는 해당 월의 총 데이터 건수. 마우스 올리면 출처별 내역 표시</div>';
+  } catch (e) {
+    el.textContent = '로드 실패: ' + e.message;
+  }
+}
+
+/* ========================================================
+   ============  렌탈 관리 (Rental)  ============
+   ======================================================== */
+
+// 유틸: 집계 키 (비고/그룹 식별용)
+function rentalKey(d) {
+  return `${d.거래처||''}|${d.사업장||''}|${d.제품||''}`;
+}
+
+// 오늘 날짜 (YYYY-MM-DD)
+function todayStr() {
+  return new Date().toISOString().slice(0,10);
+}
+
+// 렌탈종료일 상태: 'expired' | 'soon' (30일 이내) | 'ok' | 'none' (무기한 유효)
+// 빈값, "-", 텍스트 등 날짜 형식(YYYY-MM-DD)이 아니면 "무기한 유효"로 간주
+function rentalStatus(endDate) {
+  if (!endDate || endDate === '-' || !/^\d{4}-\d{2}-\d{2}/.test(String(endDate))) {
+    return 'none'; // 무기한 유효 (해지 요청시까지)
+  }
+  const today = todayStr();
+  const d = String(endDate).slice(0, 10);
+  if (d < today) return 'expired';
+  const d1 = new Date(today);
+  const d2 = new Date(d);
+  const diffDays = Math.floor((d2 - d1) / (1000 * 60 * 60 * 24));
+  if (diffDays <= 30) return 'soon';
+  return 'ok';
+}
+
+// 날짜 정규화: 엑셀 직렬번호, Date 객체, 문자열 모두 YYYY-MM-DD로
+function normalizeRentalDate(v) {
+  if (v == null || v === '') return '';
+  if (v instanceof Date) return v.toISOString().slice(0, 10);
+  if (typeof v === 'number') {
+    // Excel serial
+    const d = XLSX.SSF.parse_date_code(v);
+    if (d) return `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`;
+  }
+  const s = String(v).trim();
+  if (/^\d+(\.\d+)?$/.test(s) && parseFloat(s) > 40000) {
+    const d = XLSX.SSF.parse_date_code(parseFloat(s));
+    if (d) return `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`;
+  }
+  const m = s.match(/(\d{4})[-.\/](\d{1,2})[-.\/](\d{1,2})/);
+  if (m) return `${m[1]}-${String(m[2]).padStart(2,'0')}-${String(m[3]).padStart(2,'0')}`;
+  return s;
+}
+
+// 금액: 숫자면 number, 텍스트('인쇄매수 × 6원')면 string 유지
+function normalizeRentalAmount(v) {
+  if (v == null || v === '') return null;
+  if (typeof v === 'number') return isNaN(v) ? null : v;
+  const s = String(v).trim();
+  // 순수 숫자 형식인지 (콤마/공백/통화기호 제거 후)
+  const cleaned = s.replace(/[,\s₩원]/g, '');
+  if (/^-?\d+(\.\d+)?$/.test(cleaned)) return parseFloat(cleaned);
+  // 텍스트 금액 그대로 보관
+  return s;
+}
+
+// 짧은 UID
+function ruid() { return 'r_' + Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+
+/* ========== 로드 ========== */
+async function loadRentalData() {
+  state.rentalData = await storage.getRentals();
+  await storage.getRentalNotes(); // 비고 캐시 채우기
+  rebuildRentalSiteFilters();
+  renderRental();
+}
+
+function rebuildRentalSiteFilters() {
+  const sites = [...new Set(state.rentalData.map(d => d.사업장).filter(Boolean))].sort();
+  const wrap = document.getElementById('rentalSiteFilters');
+  wrap.innerHTML = `<button class="filter-chip active" data-site="all">전체</button>` +
+    sites.map(s => `<button class="filter-chip" data-site="${escapeHtml(s)}">${escapeHtml(s)}</button>`).join('');
+  wrap.onclick = (e) => {
+    if (!e.target.classList.contains('filter-chip')) return;
+    wrap.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+    e.target.classList.add('active');
+    state.rentalSite = e.target.dataset.site;
+    renderRental();
+  };
+}
+
+/* ========== 렌더 ========== */
+function renderRental() {
+  const all = state.rentalData;
+  // 필터 적용
+  const q = state.rentalSearch;
+  const filtered = all.filter(d => {
+    if (state.rentalSite !== 'all' && d.사업장 !== state.rentalSite) return false;
+    if (q) {
+      const hay = [d.거래처, d.사업장, d.제품, d.설치장소, d.비고].filter(Boolean).join(' ').toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  // 통계 (만료도 포함)
+  const numericTotal = filtered.reduce((s,d) => s + (typeof d.금액 === 'number' ? d.금액 : 0), 0);
+  const textAmountCount = filtered.filter(d => typeof d.금액 === 'string').length;
+  const expiredCount = filtered.filter(d => rentalStatus(d.렌탈종료일) === 'expired').length;
+  const vendors = new Set(filtered.map(d => d.거래처));
+  const products = new Set(filtered.map(d => d.제품));
+
+  document.getElementById('rentalStatTotal').textContent = fmt(numericTotal) + '원';
+  document.getElementById('rentalStatTotalSub').textContent =
+    textAmountCount > 0 ? `+ 텍스트 금액 ${textAmountCount}건` : '전체 계약 합계';
+  document.getElementById('rentalStatVendors').textContent = vendors.size + '개';
+  document.getElementById('rentalStatProducts').textContent = products.size + '종';
+  document.getElementById('rentalStatCount').textContent = filtered.length + '건';
+  document.getElementById('rentalStatCountSub').textContent =
+    expiredCount > 0 ? `만료 ${expiredCount}건 포함` : '전체 유효';
+
+  // 그룹화: 거래처별
+  const byVendor = new Map();
+  filtered.forEach(d => {
+    if (!byVendor.has(d.거래처)) byVendor.set(d.거래처, []);
+    byVendor.get(d.거래처).push(d);
+  });
+
+  const wrap = document.getElementById('rentalVendorGroups');
+  if (filtered.length === 0) {
+    wrap.innerHTML = `<div class="empty-state" style="background:white;border-radius:12px">
+      <div class="icon">🏷️</div>
+      <div class="msg">${all.length === 0 ? '업로드된 렌탈 데이터가 없습니다. 상단 [➕ 렌탈 추가] 버튼이나 데이터 업로드 탭을 이용하세요.' : '검색 조건에 맞는 렌탈 내역이 없습니다.'}</div>
+    </div>`;
+    return;
+  }
+
+  // 정렬 (만료 포함 기준으로 계산)
+  const vendorList = [...byVendor.entries()];
+  const sortMode = state.rentalSort;
+  vendorList.forEach(([_, items]) => {
+    items._total = items.reduce((s,d) => s + (typeof d.금액 === 'number' ? d.금액 : 0), 0);
+    items._count = items.reduce((s,d) => s + (Number(d.수량) || 0), 0);
+  });
+  vendorList.sort((a, b) => {
+    if (sortMode === 'amount') return b[1]._total - a[1]._total;
+    if (sortMode === 'count') return b[1]._count - a[1]._count;
+    return a[0].localeCompare(b[0], 'ko');
+  });
+
+  const notes = storage.getRentalNotesSync();
+
+  wrap.innerHTML = vendorList.map(([vendor, items]) => {
+    // 거래처|사업장|제품|금액타입 으로 집계
+    const aggMap = new Map();
+    items.forEach(d => {
+      const isText = typeof d.금액 === 'string';
+      const aggKey = `${d.사업장}|${d.제품}|${isText ? 'TEXT:'+d.금액 : 'NUM'}`;
+      if (!aggMap.has(aggKey)) {
+        aggMap.set(aggKey, {
+          사업장: d.사업장, 제품: d.제품, isText, textValue: isText ? d.금액 : null,
+          totalQty: 0, expiredQty: 0,
+          totalAmount: 0,
+          noteKey: rentalKey(d),
+          items: []
+        });
+      }
+      const agg = aggMap.get(aggKey);
+      agg.items.push(d);
+      const qty = Number(d.수량) || 0;
+      agg.totalQty += qty;
+      if (!isText) agg.totalAmount += (Number(d.금액) || 0);
+      if (rentalStatus(d.렌탈종료일) === 'expired') agg.expiredQty += qty;
+    });
+
+    const aggRows = [...aggMap.values()].sort((a,b) => {
+      if (a.사업장 !== b.사업장) return a.사업장.localeCompare(b.사업장, 'ko');
+      return a.제품.localeCompare(b.제품, 'ko');
+    });
+
+    const vendorTotal = items._total;
+    const vendorExpired = items.filter(d => rentalStatus(d.렌탈종료일) === 'expired').length;
+
+    return `
+      <div class="rental-vendor-group">
+        <div class="rental-vendor-header">
+          <div class="vname">🏢 ${escapeHtml(vendor)}</div>
+          <div class="vstat">
+            <span>계약 <strong>${items.length}건</strong></span>
+            <span>수량 <strong>${items._count}대</strong></span>
+            <span>월 합계 <strong>${fmt(vendorTotal)}원</strong></span>
+            ${vendorExpired > 0 ? `<span style="color:var(--red)">만료 <strong>${vendorExpired}건</strong></span>` : ''}
+            <button class="btn-detail" style="background:var(--red);padding:4px 10px" data-action="delete-vendor" data-vendor="${escapeHtml(vendor)}">🗑 거래처 전체</button>
+          </div>
+        </div>
+        <table class="rental-table">
+          <thead>
+            <tr>
+              <th style="width:140px">사업장</th>
+              <th style="width:30%">제품</th>
+              <th style="width:110px;text-align:center">수량</th>
+              <th style="width:130px;text-align:right">월 합계</th>
+              <th>비고 (직접 입력)</th>
+              <th style="width:50px;text-align:center">삭제</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${aggRows.map(r => {
+              const key = r.noteKey;
+              const note = notes[key] || '';
+              const qtyCell = r.expiredQty > 0
+                ? `<strong>${r.totalQty}대</strong><div style="font-size:10px;color:var(--red);font-weight:500">만료 ${r.expiredQty}대</div>`
+                : `<strong>${r.totalQty}대</strong>`;
+              const amtCell = r.isText
+                ? `<span class="amt text-amt" title="${escapeHtml(r.textValue)}">${escapeHtml(r.textValue)}</span>`
+                : `<span>${fmt(r.totalAmount)}원</span>`;
+              const aggKeyAttr = `${escapeHtml(r.사업장)}|${escapeHtml(r.제품)}|${r.isText?'TEXT':'NUM'}|${escapeHtml(r.textValue||'')}`;
+              return `
+                <tr class="rental-row-clickable" data-vendor="${escapeHtml(vendor)}" data-agg-key="${aggKeyAttr}" title="클릭하면 세부내역을 볼 수 있습니다">
+                  <td><span class="site-badge">${escapeHtml(r.사업장)}</span></td>
+                  <td style="font-weight:500">${escapeHtml(r.제품)}</td>
+                  <td class="qty">${qtyCell}</td>
+                  <td class="amt">${amtCell}</td>
+                  <td data-no-click>
+                    <input type="text" class="rental-note-input" value="${escapeHtml(note)}"
+                      data-note-key="${escapeHtml(key)}" placeholder="메모 입력...">
+                  </td>
+                  <td style="text-align:center" data-no-click>
+                    <button class="btn-detail" style="background:var(--red)" data-action="delete-group" data-agg-key="${aggKeyAttr}" data-vendor="${escapeHtml(vendor)}" title="이 행 전체 삭제">🗑</button>
+                  </td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }).join('');
+
+  // 이벤트 바인딩
+  // 행 전체 클릭 → 세부내역 (비고 입력 셀, 삭제 버튼 셀은 제외)
+  wrap.querySelectorAll('.rental-row-clickable').forEach(tr => {
+    tr.onclick = (e) => {
+      // data-no-click 속성이 있는 셀 안을 클릭했으면 무시
+      if (e.target.closest('[data-no-click]')) return;
+      openRentalDetail(tr.dataset.vendor, tr.dataset.aggKey);
+    };
+  });
+
+  wrap.querySelectorAll('.rental-note-input').forEach(inp => {
+    const originalKey = inp.dataset.noteKey;
+    inp.onblur = () => {
+      storage.setRentalNote(originalKey, inp.value).catch(e => console.error(e));
+      inp.classList.add('saved');
+      setTimeout(() => inp.classList.remove('saved'), 1000);
+    };
+    inp.onkeydown = (e) => { if (e.key === 'Enter') inp.blur(); };
+    // 입력 필드 클릭 시 행 클릭 이벤트 전파 방지 (안전장치)
+    inp.onclick = (e) => e.stopPropagation();
+  });
+
+  wrap.querySelectorAll('[data-action="delete-group"]').forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      deleteRentalGroup(btn.dataset.vendor, btn.dataset.aggKey);
+    };
+  });
+  wrap.querySelectorAll('[data-action="delete-vendor"]').forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      deleteRentalVendor(btn.dataset.vendor);
+    };
+  });
+}
+
+/* ========== 세부내역 모달 ========== */
+function openRentalDetail(vendor, aggKey) {
+  const [site, product, typeFlag, textVal] = aggKey.split('|');
+  const items = state.rentalData.filter(d => {
+    if (d.거래처 !== vendor || d.사업장 !== site || d.제품 !== product) return false;
+    const isText = typeof d.금액 === 'string';
+    if (typeFlag === 'TEXT') return isText && d.금액 === textVal;
+    return !isText;
+  });
+
+  document.getElementById('rentalDetailTitle').textContent =
+    `${vendor} · ${site} · ${product} 세부내역`;
+
+  const body = document.getElementById('rentalDetailBody');
+  const todayS = todayStr();
+  const expiredItems = items.filter(d => rentalStatus(d.렌탈종료일) === 'expired');
+  const soonItems = items.filter(d => rentalStatus(d.렌탈종료일) === 'soon');
+  const totalQty = items.reduce((s,d) => s + (Number(d.수량)||0), 0);
+  const totalSum = items.reduce((s,d) => s + (typeof d.금액 === 'number' ? d.금액 : 0), 0);
+
+  body.innerHTML = `
+    <div class="vendor-summary">
+      <div class="summary-cell">
+        <div class="label">전체 건수</div>
+        <div class="value">${items.length}건</div>
+      </div>
+      <div class="summary-cell">
+        <div class="label">총 수량</div>
+        <div class="value">${totalQty}대</div>
+      </div>
+      <div class="summary-cell">
+        <div class="label">월 합계</div>
+        <div class="value">${fmt(totalSum)}원</div>
+      </div>
+      <div class="summary-cell" ${expiredItems.length>0?'style="border:1px solid var(--red)"':''}>
+        <div class="label">만료</div>
+        <div class="value" style="color:${expiredItems.length>0?'var(--red)':'var(--text-light)'}">${expiredItems.length}건</div>
+      </div>
+      <div class="summary-cell" ${soonItems.length>0?'style="border:1px solid var(--gold)"':''}>
+        <div class="label">30일 내 만료</div>
+        <div class="value" style="color:${soonItems.length>0?'var(--gold-dark)':'var(--text-light)'}">${soonItems.length}건</div>
+      </div>
+    </div>
+
+    <div style="font-size:11px;color:var(--text-light);margin-bottom:8px">
+      🔴 만료 · 🟡 30일 이내 만료 · 종료일이 <strong>"-"</strong> 또는 비어있으면 <strong>해지 요청시까지 유효</strong> (오늘: ${todayS})
+    </div>
+    <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;max-height:50vh;overflow-y:auto">
+      <table class="data-table">
+        <thead style="position:sticky;top:0;background:var(--bg);z-index:1">
+          <tr>
+            <th>설치장소</th>
+            <th style="text-align:center">수량</th>
+            <th style="text-align:right">금액</th>
+            <th style="text-align:center">렌탈시작일</th>
+            <th style="text-align:center">렌탈종료일</th>
+            <th style="text-align:center;width:100px">수정/삭제</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${items.sort((a,b)=>(a.설치장소||'').localeCompare(b.설치장소||'','ko')).map(d => {
+            const status = rentalStatus(d.렌탈종료일);
+            const rowStyle = status === 'expired'
+              ? 'background:#FEF0EE;color:var(--red)'
+              : status === 'soon' ? 'background:#FFF9E0' : '';
+            const endCell = d.렌탈종료일
+              ? `${d.렌탈종료일}${status==='expired'?' <span style="background:var(--red);color:white;padding:1px 6px;border-radius:4px;font-size:10px;margin-left:4px">만료</span>':status==='soon'?' <span style="background:var(--gold);color:white;padding:1px 6px;border-radius:4px;font-size:10px;margin-left:4px">곧 만료</span>':''}`
+              : '';
+            const amtDisplay = typeof d.금액 === 'string'
+              ? `<span style="font-style:italic;color:var(--gold-dark)">${escapeHtml(d.금액)}</span>`
+              : fmt(d.금액 || 0) + '원';
+            return `
+              <tr style="${rowStyle}">
+                <td>${escapeHtml(d.설치장소 || '')}</td>
+                <td style="text-align:center">${d.수량 || 0}</td>
+                <td style="text-align:right">${amtDisplay}</td>
+                <td style="text-align:center;font-size:12px">${d.렌탈시작일 || ''}</td>
+                <td style="text-align:center;font-size:12px">${endCell}</td>
+                <td style="text-align:center;white-space:nowrap">
+                  <button class="btn-detail" data-edit-id="${d.id}" style="padding:3px 8px">✏️</button>
+                  <button class="btn-detail" data-delete-id="${d.id}" style="padding:3px 8px;background:var(--red)">🗑</button>
+                </td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+
+  body.querySelectorAll('[data-edit-id]').forEach(btn => {
+    btn.onclick = () => {
+      const item = state.rentalData.find(d => d.id === btn.dataset.editId);
+      if (item) openRentalForm(item);
+    };
+  });
+  body.querySelectorAll('[data-delete-id]').forEach(btn => {
+    btn.onclick = () => deleteRentalItem(btn.dataset.deleteId);
+  });
+
+  document.getElementById('rentalDetailModal').classList.add('show');
+}
+
+document.getElementById('rentalDetailClose').onclick = () =>
+  document.getElementById('rentalDetailModal').classList.remove('show');
+document.getElementById('rentalDetailModal').onclick = (e) => {
+  if (e.target === e.currentTarget) e.currentTarget.classList.remove('show');
+};
+
+/* ========== 삭제 ========== */
+async function deleteRentalItem(id) {
+  const item = state.rentalData.find(d => d.id === id);
+  if (!item) return;
+  if (!confirm(`다음 항목을 삭제하시겠습니까?\n\n${item.거래처} / ${item.사업장} / ${item.제품}\n설치장소: ${item.설치장소 || '-'}\n\n이 작업은 되돌릴 수 없습니다.`)) return;
+  showLoading(true);
+  try {
+    await storage.deleteRental(id);
+    toast('✓ 삭제 완료', 'success');
+    document.getElementById('rentalDetailModal').classList.remove('show');
+    await loadRentalData();
+  } finally { showLoading(false); }
+}
+
+async function deleteRentalGroup(vendor, aggKey) {
+  const [site, product, typeFlag, textVal] = aggKey.split('|');
+  const targets = state.rentalData.filter(d => {
+    if (d.거래처 !== vendor || d.사업장 !== site || d.제품 !== product) return false;
+    const isText = typeof d.금액 === 'string';
+    if (typeFlag === 'TEXT') return isText && d.금액 === textVal;
+    return !isText;
+  });
+  if (targets.length === 0) return;
+  if (!confirm(`${vendor} / ${site} / ${product} (${targets.length}건)을(를) 전체 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다.`)) return;
+  showLoading(true);
+  try {
+    await storage.deleteRentals(targets.map(d => d.id));
+    toast(`✓ ${targets.length}건 삭제 완료`, 'success');
+    await loadRentalData();
+  } finally { showLoading(false); }
+}
+
+async function deleteRentalVendor(vendor) {
+  const targets = state.rentalData.filter(d => d.거래처 === vendor);
+  if (targets.length === 0) return;
+  if (!confirm(`${vendor}의 모든 렌탈 내역 (${targets.length}건)을 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다.`)) return;
+  showLoading(true);
+  try {
+    await storage.deleteRentals(targets.map(d => d.id));
+    toast(`✓ ${targets.length}건 삭제 완료`, 'success');
+    await loadRentalData();
+  } finally { showLoading(false); }
+}
+
+/* ========== 추가/수정 폼 ========== */
+function openRentalForm(existing = null) {
+  const isEdit = !!existing;
+  const vendors = [...new Set(state.rentalData.map(d => d.거래처).filter(Boolean))].sort();
+  const sites = [...new Set(state.rentalData.map(d => d.사업장).filter(Boolean))].sort();
+  const products = [...new Set(state.rentalData.map(d => d.제품).filter(Boolean))].sort();
+
+  // 기존 모달 제거
+  const existingModal = document.getElementById('rentalFormModal');
+  if (existingModal) existingModal.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'rentalFormModal';
+  modal.className = 'modal-backdrop show';
+  modal.innerHTML = `
+    <div class="modal" style="max-width:560px">
+      <div class="modal-header">
+        <h2>${isEdit ? '✏️ 렌탈 내역 수정' : '➕ 렌탈 추가'}</h2>
+        <button class="close-btn" id="rentalFormClose">✕</button>
+      </div>
+      <div class="modal-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          ${dropdownWithCustom('거래처', 'rfVendor', vendors, existing?.거래처)}
+          ${dropdownWithCustom('사업장', 'rfSite', sites, existing?.사업장)}
+          ${dropdownWithCustom('제품', 'rfProduct', products, existing?.제품)}
+          <div class="form-group" style="grid-column:1/-1">
+            <label>설치장소</label>
+            <input type="text" id="rfLocation" value="${escapeHtml(existing?.설치장소 || '')}" placeholder="예: 식당-1층/남자 5-1">
+          </div>
+          <div class="form-group">
+            <label>수량</label>
+            <input type="number" id="rfQty" min="0" step="1" value="${existing?.수량 ?? 1}">
+          </div>
+          <div class="form-group">
+            <label>금액 (숫자 또는 텍스트)</label>
+            <input type="text" id="rfAmount" value="${existing?.금액 != null ? String(existing.금액) : ''}" placeholder="예: 14320 또는 '인쇄매수 × 6원'">
+          </div>
+          <div class="form-group">
+            <label>렌탈 시작일</label>
+            <input type="date" id="rfStart" value="${normalizeDateForInput(existing?.렌탈시작일)}">
+          </div>
+          <div class="form-group">
+            <label>렌탈 종료일</label>
+            <input type="date" id="rfEnd" value="${normalizeDateForInput(existing?.렌탈종료일)}">
+          </div>
+          <div class="form-group" style="grid-column:1/-1">
+            <label>비고 (이 항목 전용 메모)</label>
+            <input type="text" id="rfNote" value="${escapeHtml(existing?.비고 || '')}" placeholder="선택 사항">
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
+          <button class="btn-upload" id="rfCancel" style="background:var(--text-light);width:auto;padding:10px 18px;margin-top:0">취소</button>
+          <button class="btn-upload" id="rfSave" style="width:auto;padding:10px 18px;margin-top:0">💾 저장</button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  // 드롭다운 "직접 입력" 토글
+  ['rfVendor', 'rfSite', 'rfProduct'].forEach(id => {
+    const sel = document.getElementById(id);
+    const input = document.getElementById(id + '_custom');
+    sel.onchange = () => {
+      if (sel.value === '__custom__') {
+        input.style.display = 'block';
+        input.focus();
+      } else {
+        input.style.display = 'none';
+      }
+    };
+  });
+
+  const close = () => modal.remove();
+  document.getElementById('rentalFormClose').onclick = close;
+  document.getElementById('rfCancel').onclick = close;
+  modal.onclick = (e) => { if (e.target === modal) close(); };
+
+  document.getElementById('rfSave').onclick = async () => {
+    const getVal = (id) => {
+      const sel = document.getElementById(id);
+      const custom = document.getElementById(id + '_custom');
+      if (sel.value === '__custom__') return custom.value.trim();
+      return sel.value.trim();
+    };
+    const 거래처 = getVal('rfVendor');
+    const 사업장 = getVal('rfSite');
+    const 제품 = getVal('rfProduct');
+    const 설치장소 = document.getElementById('rfLocation').value.trim();
+    const 수량Raw = document.getElementById('rfQty').value;
+    const 금액Raw = document.getElementById('rfAmount').value.trim();
+    const 렌탈시작일 = document.getElementById('rfStart').value;
+    const 렌탈종료일 = document.getElementById('rfEnd').value;
+    const 비고 = document.getElementById('rfNote').value.trim();
+
+    if (!거래처 || !사업장 || !제품) {
+      toast('거래처·사업장·제품은 필수입니다', 'error');
+      return;
+    }
+    const 수량 = 수량Raw ? parseInt(수량Raw) : 0;
+    const 금액 = 금액Raw ? normalizeRentalAmount(금액Raw) : 0;
+
+    showLoading(true);
+    try {
+      if (isEdit) {
+        const updates = {
+          거래처, 사업장, 제품, 설치장소, 수량, 금액, 렌탈시작일, 렌탈종료일, 비고,
+          updatedAt: new Date().toISOString()
+        };
+        await storage.updateRental(existing.id, updates);
+        toast('✓ 수정 완료', 'success');
+      } else {
+        await storage.addRental({
+          거래처, 사업장, 제품, 설치장소, 수량, 금액, 렌탈시작일, 렌탈종료일, 비고,
+          createdAt: new Date().toISOString()
+        });
+        toast('✓ 추가 완료', 'success');
+      }
+      close();
+      document.getElementById('rentalDetailModal').classList.remove('show');
+      await loadRentalData();
+    } catch (e) {
+      console.error(e);
+      toast('저장 실패: ' + e.message, 'error');
+    } finally { showLoading(false); }
+  };
+}
+
+// date input 에 넣을 수 있는 형식으로 변환
+function normalizeDateForInput(v) {
+  if (!v) return '';
+  const s = normalizeRentalDate(v);
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : '';
+}
+
+// 드롭다운 + 직접입력 옵션 HTML
+function dropdownWithCustom(label, id, options, selectedValue) {
+  const hasCustom = selectedValue && !options.includes(selectedValue);
+  return `
+    <div class="form-group">
+      <label>${label} <span style="color:var(--red)">*</span></label>
+      <select id="${id}" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:14px">
+        <option value="">선택...</option>
+        ${options.map(o => `<option value="${escapeHtml(o)}" ${o===selectedValue?'selected':''}>${escapeHtml(o)}</option>`).join('')}
+        <option value="__custom__" ${hasCustom?'selected':''}>+ 직접 입력</option>
+      </select>
+      <input type="text" id="${id}_custom" value="${hasCustom?escapeHtml(selectedValue):''}" placeholder="직접 입력" style="display:${hasCustom?'block':'none'};width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:14px;margin-top:6px">
+    </div>
+  `;
+}
+
+/* ========== 업로드/파싱 ========== */
+async function parseRentalFile(file) {
+  const buf = await file.arrayBuffer();
+  const wb = XLSX.read(buf, { type: 'array' });
+  const sheet = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null, raw: false });
+
+  // 헤더 행 찾기
+  let headerRow = -1;
+  for (let i = 0; i < Math.min(5, rows.length); i++) {
+    const r = rows[i].map(c => c ? String(c).trim() : '');
+    if (r.includes('거래처') && r.includes('제품')) { headerRow = i; break; }
+  }
+  if (headerRow < 0) throw new Error('헤더 행을 찾을 수 없습니다 (거래처·제품 컬럼 필요)');
+
+  const hdr = rows[headerRow].map(c => c ? String(c).trim() : '');
+  const col = {
+    거래처: hdr.indexOf('거래처'),
+    사업장: hdr.indexOf('사업장'),
+    제품: hdr.indexOf('제품'),
+    설치장소: hdr.indexOf('설치장소'),
+    수량: hdr.indexOf('수량'),
+    금액: hdr.indexOf('금액'),
+    렌탈시작일: hdr.findIndex(h => h.includes('시작')),
+    렌탈종료일: hdr.findIndex(h => h.includes('종료')),
+    비고: hdr.indexOf('비고')
+  };
+
+  const records = [];
+  let curVendor = '', curSite = '', curProduct = '';
+  for (let i = headerRow + 1; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r || r.every(c => c == null || c === '')) continue;
+
+    const vendor = col.거래처 >= 0 ? r[col.거래처] : null;
+    const site = col.사업장 >= 0 ? r[col.사업장] : null;
+    const product = col.제품 >= 0 ? r[col.제품] : null;
+    const location = col.설치장소 >= 0 ? r[col.설치장소] : null;
+    const qty = col.수량 >= 0 ? r[col.수량] : null;
+    const amount = col.금액 >= 0 ? r[col.금액] : null;
+    const startD = col.렌탈시작일 >= 0 ? r[col.렌탈시작일] : null;
+    const endD = col.렌탈종료일 >= 0 ? r[col.렌탈종료일] : null;
+    const note = col.비고 >= 0 ? r[col.비고] : null;
+
+    // 이월 값 (병합 셀)
+    if (vendor && String(vendor).trim()) curVendor = String(vendor).trim();
+    if (site && String(site).trim()) curSite = String(site).trim();
+    if (product && String(product).trim()) curProduct = String(product).trim();
+
+    // 유효 행: 설치장소나 금액이 있으면 레코드로 인정
+    if (!location && amount == null) continue;
+
+    const qtyNum = qty != null && qty !== '' ? (parseInt(String(qty).replace(/[,\s]/g,'')) || 0) : 0;
+
+    records.push({
+      id: ruid(),
+      거래처: curVendor,
+      사업장: curSite,
+      제품: curProduct,
+      설치장소: location ? String(location).trim() : '',
+      수량: qtyNum,
+      금액: normalizeRentalAmount(amount),
+      렌탈시작일: normalizeRentalDate(startD),
+      렌탈종료일: normalizeRentalDate(endD),
+      비고: note ? String(note).trim() : '',
+      createdAt: new Date().toISOString()
+    });
+  }
+  return records;
+}
+
+/* ========== 설정 (이벤트 바인딩) ========== */
+function setupRental() {
+  // 검색
+  let t;
+  document.getElementById('rentalSearchInput').oninput = (e) => {
+    clearTimeout(t);
+    t = setTimeout(() => {
+      state.rentalSearch = e.target.value.trim().toLowerCase();
+      renderRental();
+    }, 200);
+  };
+
+  // 정렬
+  const sortWrap = document.getElementById('rentalSortFilters');
+  sortWrap.onclick = (e) => {
+    if (!e.target.classList.contains('filter-chip')) return;
+    sortWrap.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+    e.target.classList.add('active');
+    state.rentalSort = e.target.dataset.rsort;
+    renderRental();
+  };
+
+  // 엑셀 내보내기
+  document.getElementById('rentalExportBtn').onclick = () => {
+    if (state.rentalData.length === 0) { toast('내보낼 데이터가 없습니다', 'error'); return; }
+    const notes = storage.getRentalNotes();
+    const rows = state.rentalData.map(d => ({
+      '거래처': d.거래처, '사업장': d.사업장, '제품': d.제품,
+      '설치장소': d.설치장소 || '', '수량': d.수량 || 0,
+      '금액': d.금액 ?? '',
+      '렌탈시작일': d.렌탈시작일 || '', '렌탈종료일': d.렌탈종료일 || '',
+      '상태': rentalStatus(d.렌탈종료일) === 'expired' ? '만료' : rentalStatus(d.렌탈종료일) === 'soon' ? '곧 만료' : '유효',
+      '개별비고': d.비고 || '',
+      '집계비고': notes[rentalKey(d)] || ''
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '렌탈내역');
+    const stamp = new Date().toISOString().slice(0,10).replace(/-/g,'');
+    XLSX.writeFile(wb, `QUETTA_렌탈내역_${stamp}.xlsx`);
+    toast('엑셀 다운로드 완료', 'success');
+  };
+
+  // 상단 [➕ 렌탈 추가] 버튼은 동적으로 추가
+  const tabRental = document.getElementById('tab-rental');
+  const statsRow = tabRental.querySelector('.stats-row');
+  const addBar = document.createElement('div');
+  addBar.style.cssText = 'display:flex;justify-content:flex-end;margin-bottom:12px;gap:8px';
+  addBar.innerHTML = `
+    <button class="btn-upload" id="rentalAddBtn" style="background:var(--teal);width:auto;padding:10px 18px;margin-top:0">➕ 렌탈 추가</button>
+  `;
+  statsRow.parentNode.insertBefore(addBar, statsRow);
+  document.getElementById('rentalAddBtn').onclick = () => openRentalForm();
+
+  // ===== 업로드 탭 ===== //
+  setupDropZone('dropZoneRental', 'fileInputRental', handleRentalFile);
+  document.getElementById('uploadBtnRental').onclick = saveRentalUpload;
+
+  // 조회 (현재 저장된 렌탈 데이터 미리보기)
+  document.getElementById('viewRentalBtn').onclick = () => {
+    const data = state.rentalData;
+    if (data.length === 0) {
+      toast('저장된 렌탈 데이터가 없습니다', 'error');
+      return;
+    }
+    // 렌탈 관리 탭으로 이동
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.querySelector('.tab-btn[data-tab="rental"]').classList.add('active');
+    document.getElementById('tab-rental').classList.add('active');
+    toast(`현재 ${data.length}건의 렌탈 데이터가 저장되어 있습니다`, 'success');
+  };
+
+  // 전체 삭제
+  document.getElementById('deleteRentalBtn').onclick = async () => {
+    const data = state.rentalData;
+    if (data.length === 0) {
+      toast('삭제할 렌탈 데이터가 없습니다', 'error');
+      return;
+    }
+    if (!confirm(`모든 렌탈 데이터 (${data.length}건)를 삭제하시겠습니까?\n\n비고는 보존됩니다 (재업로드 시 자동 복원).\n이 작업은 되돌릴 수 없습니다.`)) return;
+    if (!confirm('한 번 더 확인합니다. 정말 삭제할까요?')) return;
+    showLoading(true);
+    try {
+      await storage.clearRentals();
+      toast(`✓ ${data.length}건 삭제 완료`, 'success');
+      await loadRentalData();
+    } finally { showLoading(false); }
+  };
+}
+
+async function handleRentalFile(file) {
+  try {
+    const data = await parseRentalFile(file);
+    state.pendingRental = { file, parsed: data };
+    renderRentalPreview(data, file.name);
+    document.getElementById('uploadBtnRental').disabled = false;
+    // 기존 데이터 있으면 경고
+    document.getElementById('warningRental').classList.toggle('show', state.rentalData.length > 0);
+  } catch (e) {
+    console.error(e);
+    toast('파일 파싱 실패: ' + e.message, 'error');
+  }
+}
+
+function renderRentalPreview(data, name) {
+  const el = document.getElementById('previewRental');
+  const numericTotal = data.filter(d => typeof d.금액 === 'number')
+    .reduce((s,d) => s + d.금액, 0);
+  const textAmtCount = data.filter(d => typeof d.금액 === 'string').length;
+  const vendors = new Set(data.map(d => d.거래처));
+  el.innerHTML = `
+    <div class="file-name">
+      <strong>📄 ${escapeHtml(name)}</strong>
+      <span class="count-tag">${data.length}건</span>
+    </div>
+    <div style="margin-bottom:8px;font-size:12px">
+      • 거래처: <strong>${vendors.size}개</strong><br>
+      • 숫자 금액 합계: <strong>${fmt(numericTotal)}원</strong>${textAmtCount > 0 ? ` / 텍스트 금액: ${textAmtCount}건` : ''}
+    </div>
+    <table class="preview-table">
+      <thead><tr><th>거래처</th><th>사업장</th><th>제품</th><th>설치장소</th><th style="text-align:right">금액</th></tr></thead>
+      <tbody>
+        ${data.slice(0,5).map(d=>`
+          <tr>
+            <td>${escapeHtml(d.거래처)}</td>
+            <td>${escapeHtml(d.사업장)}</td>
+            <td>${escapeHtml(d.제품)}</td>
+            <td>${escapeHtml(d.설치장소)}</td>
+            <td style="text-align:right">${typeof d.금액 === 'number' ? fmt(d.금액) : escapeHtml(String(d.금액||''))}</td>
+          </tr>`).join('')}
+        ${data.length > 5 ? `<tr><td colspan="5" style="text-align:center;color:var(--text-light)">… 외 ${data.length - 5}건</td></tr>` : ''}
+      </tbody>
+    </table>
+  `;
+  el.classList.add('show');
+}
+
+async function saveRentalUpload() {
+  if (!state.pendingRental) return;
+  const newData = state.pendingRental.parsed;
+  showLoading(true);
+  try {
+    await storage.saveRentals(newData);
+    toast(`✓ ${newData.length}건 저장 완료 (비고 유지됨)`, 'success');
+    state.pendingRental = null;
+    document.getElementById('previewRental').classList.remove('show');
+    document.getElementById('uploadBtnRental').disabled = true;
+    document.getElementById('fileInputRental').value = '';
+    document.getElementById('warningRental').classList.remove('show');
+    await loadRentalData();
+  } catch (e) {
+    console.error(e);
+    toast('저장 실패: ' + e.message, 'error');
+  } finally { showLoading(false); }
+}
+
+// form-group 기본 스타일 보정 (폼 모달용)
+(function addRentalFormStyles() {
+  const css = `
+    .form-group { margin-bottom: 0; }
+    .form-group label { font-size: 12px; font-weight: 600; color: var(--text-light); display: block; margin-bottom: 4px; }
+    .form-group input[type="text"], .form-group input[type="number"], .form-group input[type="date"] {
+      width: 100%; padding: 10px 12px; border: 1.5px solid var(--border);
+      border-radius: 8px; font-family: inherit; font-size: 14px;
+    }
+    .form-group input:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px rgba(43,173,160,0.1); }
+  `;
+  const st = document.createElement('style');
+  st.textContent = css;
+  document.head.appendChild(st);
+})();
+
+</script>
+</body>
+</html>
